@@ -12,10 +12,22 @@
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+      "@schemas/*": [
+        "db/schema/*"
+      ],
+      "@pipes/*": [
+        "src/pipes/*"
+      ],
+      "@modules/*": [
+        "src/modules/*"
+      ]
+    }
   }
 }
