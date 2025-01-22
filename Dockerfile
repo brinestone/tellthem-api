@@ -21,6 +21,7 @@ COPY --from=build /app/dist /server/dist
 
 ENV PORT=10000
 ENV NODE_ENV=production
+ENV TUNNEL=0
 
 EXPOSE ${PORT}
 
