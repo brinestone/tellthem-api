@@ -2,12 +2,12 @@ import { sql } from 'drizzle-orm';
 import {
   AnyPgColumn,
   bigint,
-  date,
   interval,
   jsonb,
   pgEnum,
   pgTable,
   pgView,
+  text,
   timestamp,
   uniqueIndex,
   uuid,
@@ -154,6 +154,7 @@ export const federatedCredentials = pgTable('federated_credentials', {
   id: varchar({ length: 255 }).notNull().primaryKey(),
   provider: varchar({ length: 255 }).notNull(),
   lastAccessToken: varchar({ length: 500 }),
+  refreshToken: text(),
   createdAt: timestamp({ mode: 'date' }).defaultNow(),
   updatedAt: timestamp({ mode: 'date' })
     .defaultNow()
@@ -171,10 +172,12 @@ export const users = pgTable('users', {
   names: varchar({ length: 100 }).notNull(),
   imageUrl: varchar({ length: 255 }),
   email: varchar({ length: 100 }).notNull(),
-  dob: date({ mode: 'date' }),
   phone: varchar({ length: 255 }),
   credentials: varchar().references(() => federatedCredentials.id),
 });
+
+export const userSchema = createSelectSchema(users);
+export type UserInfo = z.infer<typeof userSchema>;
 
 export const themePrefs = pgEnum('theme_pref', ['system', 'dark', 'light']);
 export const userPrefs = pgTable('user_prefs', {
@@ -200,5 +203,3 @@ export const updatePrefSchema = createUpdateSchema(userPrefs).pick({
 });
 
 export const UserSchema = createSelectSchema(users);
-const connectionsSchema = createSelectSchema(accountConnections);
-export type AccountConnection = z.infer<typeof connectionsSchema>;

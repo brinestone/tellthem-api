@@ -7,6 +7,8 @@ import { Pool } from 'pg';
 import * as categories from '../db/seed/categories';
 import * as users from '../db/seed/users';
 import * as wallets from '../db/seed/wallets';
+import { DefaultLogger } from 'drizzle-orm';
+import { DefaultWriter } from 'db/log-writer';
 
 type Seeder = {
   name: string;
@@ -22,8 +24,10 @@ const pool = new Pool({
   connectionString: process.env['DATABASE_URL'],
   ssl: true,
 });
-
-const db = drizzle(pool, { schema });
+const db = drizzle(pool, {
+  schema,
+  logger: new DefaultLogger({ writer: new DefaultWriter() }),
+});
 db.transaction(async (t) => {
   for (const { seed, name } of seeders) {
     logger.verbose(`seeding ${name} ⚙️`);
@@ -32,4 +36,6 @@ db.transaction(async (t) => {
     );
     logger.log(`seeded ${name} ✅`);
   }
-}).catch((e: Error) => logger.error('seed error', e.stack));
+})
+  .then(() => pool.end())
+  .catch((e: Error) => logger.error('seed error', e.stack));

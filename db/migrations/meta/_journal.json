@@ -15,6 +15,20 @@
       "when": 1737487050491,
       "tag": "0001_wide_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1737511122327,
+      "tag": "0002_rapid_human_torch",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1737512833669,
+      "tag": "0003_clumsy_the_executioner",
+      "breakpoints": true
     }
   ]
 }

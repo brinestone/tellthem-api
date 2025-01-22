@@ -1,0 +1,1 @@
+ALTER TABLE "federated_credentials" ADD COLUMN "refreshToken" text;

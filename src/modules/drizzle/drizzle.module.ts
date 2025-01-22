@@ -1,14 +1,17 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Pool } from 'pg';
-import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { schema } from '@schemas/all';
+import { DefaultWriter } from 'db/log-writer';
+import { DefaultLogger } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import { DrizzleDb } from './types/drizzle.types';
 
 export const DRIZZLE = Symbol('drizzle-conn');
-export type TellThemDb = NodePgDatabase<typeof schema>;
 
 @Module({
   imports: [ConfigModule],
+  exports: [DRIZZLE],
   providers: [
     {
       provide: DRIZZLE,
@@ -23,7 +26,11 @@ export type TellThemDb = NodePgDatabase<typeof schema>;
 
         return drizzle(pool, {
           schema,
-        }) as NodePgDatabase<typeof schema>;
+          logger:
+            cs.get<string | null>('NODE_ENV') === 'development'
+              ? new DefaultLogger({ writer: new DefaultWriter() })
+              : false,
+        }) as DrizzleDb;
       },
     },
   ],

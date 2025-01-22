@@ -1,1 +1,2 @@
-export { DrizzleModule } from './drizzle.module';
+export { DrizzleModule, DRIZZLE } from './drizzle.module';
+export { DrizzleDb } from './types/drizzle.types';
