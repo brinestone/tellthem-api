@@ -27,6 +27,9 @@
       ],
       "@modules/*": [
         "src/modules/*"
+      ],
+      "@events/*": [
+        "events/*"
       ]
     }
   }

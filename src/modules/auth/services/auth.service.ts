@@ -30,6 +30,23 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  async revokeTokenPair(
+    accessTokenId: string,
+    refreshTokenId: string,
+    user: number,
+  ) {
+    await this.db.transaction(async (t) => {
+      await t
+        .update(accessTokens)
+        .set({ revoked_at: new Date() })
+        .where(eq(accessTokens.id, accessTokenId));
+      await t
+        .update(refreshTokens)
+        .set({ revoked_by: user })
+        .where(eq(refreshTokens.id, refreshTokenId));
+    });
+  }
+
   async generateTokenPair(
     ip: string,
     claims: UserClaims,

@@ -1,8 +1,11 @@
+import { USER_CREATED } from '@events/user';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile, Strategy, VerifyCallback } from 'passport-google-oauth20';
 import googleOauthConfig from '../config/google-oauth.config';
+import { UserCreatedEvent } from '../events';
 import { AuthService } from '../services/auth.service';
 
 @Injectable()
@@ -12,6 +15,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
     @Inject(googleOauthConfig.KEY)
     googleConfig: ConfigType<typeof googleOauthConfig>,
     private authService: AuthService,
+    private eventEmitter: EventEmitter2,
   ) {
     super({
       clientID: googleConfig.clientId,
@@ -40,6 +44,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
           names: profile.displayName,
           imageUrl: profile.photos?.[0].value,
         },
+      );
+      this.eventEmitter.emit(
+        USER_CREATED,
+        new UserCreatedEvent(existingUser.id),
       );
     } else {
       await this.authService.updateCredentialAccessToken(

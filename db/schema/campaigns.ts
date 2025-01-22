@@ -35,23 +35,12 @@ export const campaigns = pgTable('campaigns', {
   redirectUrl: varchar({ length: 500 }),
 });
 
-export const CampaignLookupSchema = createSelectSchema(campaigns)
-  .pick({
-    id: true,
-    title: true,
-    updatedAt: true,
-    categories: true,
-  })
-  .transform(({ categories, title, updatedAt, id }) => {
-    return { categoryCount: categories?.length ?? 0, title, updatedAt, id };
-  });
-
-export const newCampaignSchema = createInsertSchema(campaigns).pick({
+export const NewCampaignSchema = createInsertSchema(campaigns).pick({
   title: true,
   createdBy: true,
 });
 
-export const updateCampaignSchema = createUpdateSchema(campaigns)
+export const UpdateCampaignSchema = createUpdateSchema(campaigns)
   .pick({
     title: true,
     categories: true,
@@ -71,6 +60,17 @@ export const updateCampaignSchema = createUpdateSchema(campaigns)
     phones: z.array(z.string()).optional(),
     media: z.array(z.string()).optional(),
     redirectUrl: z.string().url().optional(),
+  });
+
+export const CampaignLookupSchema = createSelectSchema(campaigns)
+  .pick({
+    id: true,
+    title: true,
+    updatedAt: true,
+    categories: true,
+  })
+  .transform(({ categories, title, updatedAt, id }) => {
+    return { categoryCount: categories?.length ?? 0, title, updatedAt, id };
   });
 
 export const campaignPublications = pgTable('campaign_publications', {

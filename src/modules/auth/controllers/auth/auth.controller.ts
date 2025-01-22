@@ -1,7 +1,6 @@
-import { User } from '@modules/auth/decorators';
-import { GoogleGuard } from '@modules/auth/guards';
-import { RefreshGuard } from '@modules/auth/guards/refresh.guard';
-import { AuthService } from '@modules/auth/services/auth.service';
+import { Public, User } from '@modules/auth/decorators';
+import { GoogleGuard, RefreshGuard, RevokeGuard } from '@modules/auth/guards';
+import { AuthService } from '@modules/auth/services';
 import { Controller, Get, Ip, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserInfo } from '@schemas/users';
@@ -13,11 +12,22 @@ export class AuthController {
     private authService: AuthService,
     private configService: ConfigService,
   ) {}
+
+  @Get('revoke-token')
+  @Public()
+  @UseGuards(RevokeGuard)
+  async handleTokenRevoke(@Req() req: Request, @User() { id }: UserInfo) {
+    const { access, refresh } = req['tokens'];
+    return await this.authService.revokeTokenPair(access, refresh, id);
+  }
+
+  @Public()
   @Get('google')
   @UseGuards(GoogleGuard)
   handleGoogleSignIn() {}
 
   @Get('google/callback')
+  @Public()
   @UseGuards(GoogleGuard)
   async completeGoogleSignIn(
     @Ip() ip: string,
@@ -42,6 +52,7 @@ export class AuthController {
   }
 
   @Get('refresh')
+  @Public()
   @UseGuards(RefreshGuard)
   async handleAccessTokenRefresh(
     @Req() request: Request,

@@ -1,13 +1,14 @@
 import { DrizzleModule } from '@modules/drizzle';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import googleOauthConfig from './config/google-oauth.config';
-import { AuthController } from './controllers/auth/auth.controller';
-import { AuthService } from './services/auth.service';
-import { GoogleStrategy } from './strategies/google.strategy';
 import jwtConfig from './config/jwt.config';
 import refreshConfig from './config/refresh.config';
-import { JwtModule } from '@nestjs/jwt';
+import { AuthController } from './controllers/auth/auth.controller';
+import { AuthService } from './services/auth.service';
+import { RevokeStrategy } from './strategies';
+import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshStrategy } from './strategies/refresh.strategy';
 
@@ -19,7 +20,13 @@ import { RefreshStrategy } from './strategies/refresh.strategy';
     ConfigModule.forFeature(jwtConfig),
     ConfigModule.forFeature(refreshConfig),
   ],
-  providers: [AuthService, GoogleStrategy, JwtStrategy, RefreshStrategy],
+  providers: [
+    AuthService,
+    GoogleStrategy,
+    JwtStrategy,
+    RevokeStrategy,
+    RefreshStrategy,
+  ],
   controllers: [AuthController],
 })
 export class AuthModule {}
