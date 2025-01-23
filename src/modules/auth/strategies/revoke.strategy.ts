@@ -26,8 +26,9 @@ export class RevokeStrategy extends PassportStrategy(Strategy, 'revoke') {
     req: Request,
     payload: { tokenId: string; value: string },
   ): Promise<unknown> {
+    console.log(payload);
     const ip = String(req.ip);
-    this.logger.log('refreshing tokens');
+    this.logger.log('revoking token');
     const result = await this.authService.findExistingRefreshToken(
       ip,
       payload.tokenId,

@@ -35,10 +35,14 @@ export const campaigns = pgTable('campaigns', {
   redirectUrl: varchar({ length: 500 }),
 });
 
-export const NewCampaignSchema = createInsertSchema(campaigns).pick({
-  title: true,
-  createdBy: true,
-});
+export const NewCampaignSchema = createInsertSchema(campaigns)
+  .pick({
+    title: true,
+    createdBy: true,
+  })
+  .extend({
+    createdBy: z.number().optional(),
+  });
 
 export const UpdateCampaignSchema = createUpdateSchema(campaigns)
   .pick({

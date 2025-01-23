@@ -1,1 +1,1 @@
-export { ZodValidationPipe } from './zo.pipe';
+export { ZodValidationPipe } from './zod.pipe';

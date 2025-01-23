@@ -202,4 +202,6 @@ export const updatePrefSchema = createUpdateSchema(userPrefs).pick({
   language: true,
 });
 
+export type UpdatePrefsInput = z.infer<typeof updatePrefSchema>;
+
 export const UserSchema = createSelectSchema(users);

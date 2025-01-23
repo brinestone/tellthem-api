@@ -7,10 +7,12 @@ import jwtConfig from './config/jwt.config';
 import refreshConfig from './config/refresh.config';
 import { AuthController } from './controllers/auth/auth.controller';
 import { AuthService } from './services/auth.service';
-import { RevokeStrategy } from './strategies';
+import { QueryUrlJwtStrategy, RevokeStrategy } from './strategies';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshStrategy } from './strategies/refresh.strategy';
+import { UserController } from './controllers/auth/user.controller';
+import { UserService } from './services';
 
 @Module({
   imports: [
@@ -25,8 +27,10 @@ import { RefreshStrategy } from './strategies/refresh.strategy';
     GoogleStrategy,
     JwtStrategy,
     RevokeStrategy,
+    UserService,
+    QueryUrlJwtStrategy,
     RefreshStrategy,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, UserController],
 })
 export class AuthModule {}

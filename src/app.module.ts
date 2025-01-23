@@ -6,6 +6,9 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerMiddleware } from './middleware/logger.middleware';
+import { WalletModule } from '@modules/wallet/wallet.module';
+import { FinanceModule } from '@modules/finance/finance.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -14,7 +17,10 @@ import { LoggerMiddleware } from './middleware/logger.middleware';
     AuthModule,
     EventEmitterModule.forRoot(),
     CampaignModule,
+    WalletModule,
+    FinanceModule,
   ],
+  controllers: [AppController],
   providers: [
     {
       provide: APP_GUARD,

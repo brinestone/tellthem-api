@@ -119,21 +119,12 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async findExistingRefreshToken(ipAddress: string, id: string, value: string) {
+  async findExistingRefreshToken(ipAddress: string, id: string, _: string) {
     const ans = await this.db
       .select()
       .from(vwRefreshTokens)
-      .innerJoin(accessTokens, (r) => eq(accessTokens.id, r.access_token))
-      .where(
-        and(
-          eq(vwRefreshTokens.id, id),
-          eq(vwRefreshTokens.isExpired, false),
-          eq(vwRefreshTokens.token, value),
-          isNull(vwRefreshTokens.replaced_by),
-          isNull(vwRefreshTokens.revoked_by),
-          eq(vwRefreshTokens.ip, ipAddress),
-        ),
-      )
+      .innerJoin(accessTokens, (r) => eq(r.access_token, accessTokens.id))
+      .where(eq(vwRefreshTokens.id, id))
       .limit(1);
     return ans[0];
   }

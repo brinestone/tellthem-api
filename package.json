@@ -36,6 +36,7 @@
     "@nestjs/swagger": "^11.0.2",
     "drizzle-orm": "^0.38.4",
     "drizzle-zod": "^0.6.1",
+    "lru-cache": "^11.0.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
