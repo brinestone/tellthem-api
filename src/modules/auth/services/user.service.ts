@@ -1,11 +1,68 @@
 import { DRIZZLE, DrizzleDb } from '@modules/drizzle';
 import { Inject, Injectable } from '@nestjs/common';
-import { userPrefs } from '@schemas/users';
-import { eq } from 'drizzle-orm';
+import {
+  accountConnections,
+  userPrefs,
+  users,
+  verificationCodes,
+  vwVerificationCodes,
+} from '@schemas/users';
+import { and, eq } from 'drizzle-orm';
+import { randomBytes } from 'node:crypto';
 import { UpdatePrefsDto } from '../dto';
 
 @Injectable()
 export class UserService {
+  async generateVerificationCode(data: unknown, key?: string) {
+    if (key) {
+      const existingCode = await this.db
+        .select({
+          code: vwVerificationCodes.code,
+          expiresAt: vwVerificationCodes.expiresAt,
+        })
+        .from(vwVerificationCodes)
+        .where(
+          and(
+            eq(vwVerificationCodes.key, key),
+            eq(vwVerificationCodes.isExpired, false),
+          ),
+        );
+
+      if (existingCode.length > 0) {
+        return existingCode[0];
+      }
+    }
+
+    const code = randomBytes(3).toString('hex').toUpperCase();
+
+    const [{ createdAt }] = await this.db.transaction((t) =>
+      t
+        .insert(verificationCodes)
+        .values({
+          window: '15m',
+          code,
+          data,
+          key,
+        })
+        .returning({ createdAt: verificationCodes.created_at }),
+    );
+
+    return { code, expiresAt: new Date(createdAt.valueOf() + 15 * 60_000) };
+  }
+  async findUserByConnection(provider: 'telegram', providerId: string) {
+    const result = await this.db
+      .select()
+      .from(accountConnections)
+      .innerJoin(users, (ac) => eq(users.id, ac.user))
+      .where(
+        and(
+          eq(accountConnections.providerId, providerId),
+          eq(accountConnections.provider, provider),
+        ),
+      )
+      .limit(1);
+    return result[0]?.users;
+  }
   async findUserConnections(id: number) {
     return await this.db.query.accountConnections.findMany({
       columns: {

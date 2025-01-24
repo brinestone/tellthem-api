@@ -15,6 +15,7 @@ import { UserController } from './controllers/auth/user.controller';
 import { UserService } from './services';
 import { ConnectionController } from './controllers/auth/connection.controller';
 import { TelegramService } from './services/telegram.service';
+import { WebhookModule } from '@modules/webhook';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { TelegramService } from './services/telegram.service';
     ConfigModule.forFeature(googleOauthConfig),
     ConfigModule.forFeature(jwtConfig),
     ConfigModule.forFeature(refreshConfig),
+    WebhookModule,
   ],
   providers: [
     AuthService,

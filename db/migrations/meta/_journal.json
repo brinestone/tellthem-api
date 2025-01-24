@@ -36,6 +36,27 @@
       "when": 1737570891405,
       "tag": "0004_acoustic_shadow_king",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1737708740119,
+      "tag": "0005_lean_warlock",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1737708867823,
+      "tag": "0006_fancy_loners",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1737708985844,
+      "tag": "0007_adorable_ben_grimm",
+      "breakpoints": true
     }
   ]
 }

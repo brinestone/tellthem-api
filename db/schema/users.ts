@@ -100,15 +100,16 @@ export const verificationCodes = pgTable('verification_codes', {
   id: uuid().primaryKey().defaultRandom(),
   created_at: timestamp({ mode: 'date' }).notNull().defaultNow(),
   window: interval().notNull(),
-  hash: varchar({ length: 32 }).notNull().unique(),
+  code: varchar({ length: 6 }).notNull().unique(),
   confirmed_at: timestamp({ mode: 'date' }),
   data: jsonb(),
+  key: varchar(),
 });
 
 export const vwVerificationCodes = pgView('vw_verification_codes').as((qb) => {
   return qb
     .select({
-      hash: verificationCodes.hash,
+      code: verificationCodes.code,
       createdAt: verificationCodes.created_at,
       expiresAt: sql<Date>`
       (${verificationCodes.created_at} + ${verificationCodes.window})::TIMESTAMP
@@ -120,6 +121,7 @@ export const vwVerificationCodes = pgView('vw_verification_codes').as((qb) => {
       END)::BOOlEAN
     `.as('is_expired'),
       data: verificationCodes.data,
+      key: verificationCodes.key,
     })
     .from(verificationCodes);
 });

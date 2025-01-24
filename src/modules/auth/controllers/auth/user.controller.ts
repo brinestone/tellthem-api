@@ -1,7 +1,10 @@
+import { PREFS_UPDATED } from '@events/user';
 import { User } from '@modules/auth/decorators';
 import { UpdatePrefsDto } from '@modules/auth/dto';
+import { UserPrefsUpdatedEvent } from '@modules/auth/events';
 import { UserService } from '@modules/auth/services';
 import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiBody, ApiResponse } from '@nestjs/swagger';
 import { updatePrefSchema, UserInfo, UserPrefsSchema } from '@schemas/users';
 import { zodToOpenAPI, ZodValidationPipe } from 'nestjs-zod';
@@ -19,6 +22,10 @@ export class UserController {
     @Body(new ZodValidationPipe(updatePrefSchema)) input: UpdatePrefsDto,
   ) {
     await this.userService.updateUserPrefs(id, input);
+    void this.eventEmitter.emitAsync(
+      PREFS_UPDATED,
+      new UserPrefsUpdatedEvent(id),
+    );
   }
   @Get('prefs')
   @ApiResponse({ schema: zodToOpenAPI(UserPrefsSchema) })
@@ -27,5 +34,8 @@ export class UserController {
     return UserPrefsSchema.parse(result);
   }
 
-  constructor(private userService: UserService) {}
+  constructor(
+    private userService: UserService,
+    private eventEmitter: EventEmitter2,
+  ) {}
 }

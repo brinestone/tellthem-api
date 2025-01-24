@@ -1,17 +1,48 @@
+import { USER_DELETE_REQUESTED, USER_DELETED } from '@events/user';
 import { Public, User } from '@modules/auth/decorators';
+import {
+  AccountDeletionRequestedEvent,
+  UserDeletedEvent,
+} from '@modules/auth/events';
 import { GoogleGuard, RefreshGuard, RevokeGuard } from '@modules/auth/guards';
 import { AuthService } from '@modules/auth/services';
-import { Controller, Get, Ip, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  Ip,
+  Logger,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserInfo } from '@schemas/users';
 import { Request, Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
+  private logger = new Logger(AuthController.name);
   constructor(
     private authService: AuthService,
     private configService: ConfigService,
+    private eventEmitter: EventEmitter2,
   ) {}
+
+  @Delete()
+  async removeUserAccount(@User() { id }: UserInfo) {
+    await this.eventEmitter.emitAsync(
+      USER_DELETE_REQUESTED,
+      new AccountDeletionRequestedEvent(id),
+    );
+    const result = await this.authService.removeUser(id);
+    if (result) {
+      void this.eventEmitter.emitAsync(USER_DELETED, new UserDeletedEvent(id));
+      return;
+    }
+    this.logger.warn('Unexpeted result from user account deletion');
+  }
 
   @Get('revoke-token')
   @Public()
