@@ -32,22 +32,20 @@ export class RevokeStrategy extends PassportStrategy(Strategy, 'revoke') {
     const result = await this.authService.findExistingRefreshToken(
       ip,
       payload.tokenId,
-      payload.value,
     );
 
     if (!result) {
       throw new ForbiddenException('token invalid or expired');
     }
 
-    const { vw_refresh_tokens: refreshToken, access_tokens: accessToken } =
-      result;
+    const { access_token: accessToken, user: userId } = result;
 
-    const user = await this.authService.findUserById(refreshToken.user);
+    const user = await this.authService.findUserById(userId);
     if (!user) {
       return new ForbiddenException('user not found');
     }
 
-    req['tokens'] = { access: accessToken.id, refresh: refreshToken.id };
+    req['tokens'] = { access: accessToken, refresh: payload.tokenId };
     return user;
   }
 }

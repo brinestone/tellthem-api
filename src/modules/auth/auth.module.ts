@@ -13,6 +13,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshStrategy } from './strategies/refresh.strategy';
 import { UserController } from './controllers/auth/user.controller';
 import { UserService } from './services';
+import { ConnectionController } from './controllers/auth/connection.controller';
+import { TelegramService } from './services/telegram.service';
 
 @Module({
   imports: [
@@ -24,6 +26,7 @@ import { UserService } from './services';
   ],
   providers: [
     AuthService,
+    TelegramService,
     GoogleStrategy,
     JwtStrategy,
     RevokeStrategy,
@@ -31,6 +34,6 @@ import { UserService } from './services';
     QueryUrlJwtStrategy,
     RefreshStrategy,
   ],
-  controllers: [AuthController, UserController],
+  controllers: [AuthController, UserController, ConnectionController],
 })
 export class AuthModule {}

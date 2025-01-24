@@ -92,8 +92,17 @@ export const campaignPublications = pgTable('campaign_publications', {
 });
 
 export const newPublicationSchema = createInsertSchema(campaignPublications)
+  .omit({
+    createdAt: true,
+    updatedAt: true,
+    campaign: true,
+    creditAllocation: true,
+  })
   .extend({
-    credits: z.number().min(25),
-    creditAllocation: z.string().uuid().optional(),
+    credits: z
+      .number()
+      .min(25)
+      .describe('The number of credits to allocate for the publication'),
+    // creditAllocation: z.string().uuid().optional(),
   })
   .refine((data) => data.credits > 0);

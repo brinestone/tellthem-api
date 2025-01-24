@@ -1,18 +1,73 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { NewCampaignDto, UpdateCampaignDto } from './dto/campaign.dto';
 import { DRIZZLE, DrizzleDb } from '@modules/drizzle';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  PreconditionFailedException,
+} from '@nestjs/common';
 import {
   CampaignLookupSchema,
   campaignPublications,
   campaigns,
 } from '@schemas/campaigns';
-import { eq, desc, count, and, inArray } from 'drizzle-orm';
+import {
+  fundingBalances,
+  vwCreditAllocations,
+  walletCreditAllocations,
+} from '@schemas/finance';
+import { and, count, desc, eq, gte, inArray } from 'drizzle-orm';
 import { z } from 'zod';
-import { vwCreditAllocations } from '@schemas/finance';
+import { NewCampaignDto, UpdateCampaignDto } from '../dto/campaign.dto';
+import { NewPublicationDto } from '../dto/publication.dto';
 
 @Injectable()
 export class CampaignService {
   constructor(@Inject(DRIZZLE) private db: DrizzleDb) {}
+
+  async createPublication(
+    owner: number,
+    campaign: number,
+    input: NewPublicationDto,
+  ) {
+    return await this.db.transaction(async (t) => {
+      const fundingResult = await t
+        .select()
+        .from(fundingBalances)
+        .where(
+          and(
+            eq(fundingBalances.ownerId, owner),
+            gte(fundingBalances.balance, input.credits),
+          ),
+        )
+        .limit(1);
+
+      if (fundingResult.length == 0) {
+        throw new PreconditionFailedException('Insufficient funds');
+      }
+
+      const [fundingWallet] = fundingResult;
+      const [{ id: allocationId }] = await t
+        .insert(walletCreditAllocations)
+        .values({
+          allocated: input.credits,
+          wallet: fundingWallet.id,
+          status: 'active',
+        })
+        .returning({ id: walletCreditAllocations.id });
+
+      const [{ id }] = await t
+        .insert(campaignPublications)
+        .values({
+          creditAllocation: allocationId,
+          campaign,
+          publishAfter: input.publishAfter,
+          publishBefore: input.publishBefore,
+        })
+        .returning({ id: campaignPublications.id });
+
+      return id;
+    });
+  }
 
   async findPublications(campaign: number, owner: number) {
     return await this.db
@@ -48,7 +103,7 @@ export class CampaignService {
     return id;
   }
 
-  async findAll(page: number, size: number, user: number) {
+  async lookupCampaigns(page: number, size: number, user: number) {
     const data = await this.db
       .select({
         id: campaigns.id,
@@ -75,14 +130,18 @@ export class CampaignService {
     };
   }
 
-  async findOne(id: number, userId: number) {
+  async findCampaign(id: number, userId: number) {
     return await this.db.query.campaigns.findFirst({
       where: (campaign, { and, eq }) =>
         and(eq(campaign.id, id), eq(campaign.createdBy, userId)),
     });
   }
 
-  async update(owner: number, campaign: number, input: UpdateCampaignDto) {
+  async updateCampaignInfo(
+    owner: number,
+    campaign: number,
+    input: UpdateCampaignDto,
+  ) {
     const { rowCount } = await this.db.transaction((t) =>
       t
         .update(campaigns)

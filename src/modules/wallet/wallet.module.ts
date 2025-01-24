@@ -9,5 +9,6 @@ import { ConfigModule } from '@nestjs/config';
   imports: [DrizzleModule, EventEmitterModule, ConfigModule],
   controllers: [WalletController],
   providers: [WalletService],
+  exports: [WalletService],
 })
 export class WalletModule {}

@@ -3,13 +3,29 @@ import {
   PAYMENT_STATUS_CHANGED,
 } from '@events/finance';
 import { Public, User } from '@modules/auth/decorators';
-import { Controller, Get, Logger } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Logger,
+  Patch,
+  Query,
+} from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UserInfo } from '@schemas/users';
+import { zodToOpenAPI, ZodValidationPipe } from 'nestjs-zod';
+import {
+  PaymentMethodProviderNames,
+  UpdatePaymentMethodDto,
+  UpdatePaymentMethodSchema,
+} from './dto';
 import { CollectPaymentRequestedEvent, PaymentUpdatedEvent } from './events';
 import { FinanceService } from './finance.service';
 
 @Controller('/payment')
+@ApiTags('Payments')
 export class PaymentController {
   private logger = new Logger(PaymentController.name);
   constructor(
@@ -17,6 +33,28 @@ export class PaymentController {
     // private configService: ConfigService,
     private eventEmitter: EventEmitter2,
   ) {}
+
+  @Delete('method')
+  @ApiQuery({
+    name: 'provider',
+    schema: zodToOpenAPI(UpdatePaymentMethodSchema.shape.provider),
+    required: true,
+  })
+  async removePaymentMethod(
+    @Query('provider') provider: PaymentMethodProviderNames,
+    @User() { id }: UserInfo,
+  ) {
+    await this.financeService.removePaymentMethod(id, provider);
+  }
+
+  @Patch('method')
+  @ApiBody({ schema: zodToOpenAPI(UpdatePaymentMethodSchema) })
+  async updatePaymentMethod(
+    @Body(new ZodValidationPipe()) input: UpdatePaymentMethodDto,
+    @User() { id }: UserInfo,
+  ) {
+    await this.financeService.updatePaymentMethod(id, input);
+  }
 
   @OnEvent(PAYMENT_COLLECTION_REQUESTED)
   async handlePaymentCollectionRequest({

@@ -10,9 +10,9 @@ import {
   users,
   vwRefreshTokens,
 } from '@schemas/users';
-import { and, eq, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
-import { UserClaims } from '../types';
+import { UserClaimsDto } from '../dto';
 
 export type UserInput = {
   email: string;
@@ -49,7 +49,7 @@ export class AuthService {
 
   async generateTokenPair(
     ip: string,
-    claims: UserClaims,
+    claims: UserClaimsDto,
     existingTokenPair?: { access: string; refresh: string },
   ) {
     this.logger.log('generating token pair');
@@ -119,9 +119,12 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async findExistingRefreshToken(ipAddress: string, id: string, _: string) {
+  async findExistingRefreshToken(ipAddress: string, id: string) {
     const ans = await this.db
-      .select()
+      .select({
+        access_token: vwRefreshTokens.access_token,
+        user: vwRefreshTokens.user,
+      })
       .from(vwRefreshTokens)
       .innerJoin(accessTokens, (r) => eq(r.access_token, accessTokens.id))
       .where(eq(vwRefreshTokens.id, id))

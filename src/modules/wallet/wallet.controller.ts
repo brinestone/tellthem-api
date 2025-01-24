@@ -13,7 +13,6 @@ import {
 import { Body, Controller, Get, Logger, Post, Req } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { ZodValidationPipe } from '@pipes/zod';
 import { UserInfo } from '@schemas/users';
 import {
   BalancesSchema,
@@ -29,6 +28,7 @@ import {
 } from './events';
 import { WalletService } from './wallet.service';
 import { Request } from 'express';
+import { ZodValidationPipe } from 'nestjs-zod';
 
 @Controller('wallet')
 export class WalletController {

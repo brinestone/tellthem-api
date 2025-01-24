@@ -4,3 +4,10 @@ export class CampaignDeletedEvent {
 export class CampaignCreatedEvent {
   constructor(readonly id: number) {}
 }
+
+export class CampaignPublishedEvent {
+  constructor(
+    readonly campaign: number,
+    readonly publication: number,
+  ) {}
+}

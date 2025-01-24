@@ -1,4 +1,5 @@
 import { NewCampaignSchema, UpdateCampaignSchema } from '@schemas/campaigns';
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
 export const CampaignPublicationSchema = z.object({
@@ -31,5 +32,5 @@ export const CampaignLookupPaginationValidationSchema = z.object({
     .pipe(z.coerce.number().optional().default(10)),
 });
 
-export type NewCampaignDto = z.infer<typeof NewCampaignSchema>;
-export type UpdateCampaignDto = z.infer<typeof UpdateCampaignSchema>;
+export class NewCampaignDto extends createZodDto(NewCampaignSchema) {}
+export class UpdateCampaignDto extends createZodDto(UpdateCampaignSchema) {}

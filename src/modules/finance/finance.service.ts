@@ -2,9 +2,13 @@ import { DRIZZLE, DrizzleDb } from '@modules/drizzle';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { paymentMethods, paymentTransactions } from '@schemas/finance';
-import { sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { LRUCache } from 'lru-cache';
-import { PaymentMethodProviderNames, PaymentMethodProviderSchema } from './dto';
+import {
+  PaymentMethodProviderNames,
+  PaymentMethodProviderSchema,
+  UpdatePaymentMethodDto,
+} from './dto';
 import * as CountryData from '../../assets/countries.json';
 import { from, mergeMap, distinct, toArray } from 'rxjs';
 import { z } from 'zod';
@@ -63,6 +67,38 @@ export class FinanceService {
     @Inject(DRIZZLE) private db: DrizzleDb,
     private configService: ConfigService,
   ) {}
+
+  async removePaymentMethod(id: number, provider: PaymentMethodProviderNames) {
+    await this.db.transaction((t) =>
+      t
+        .delete(paymentMethods)
+        .where(
+          and(
+            eq(paymentMethods.provider, provider),
+            eq(paymentMethods.owner, id),
+          ),
+        ),
+    );
+  }
+  async updatePaymentMethod(owner: number, input: UpdatePaymentMethodDto) {
+    await this.db.transaction((t) => {
+      return t
+        .insert(paymentMethods)
+        .values({
+          owner,
+          params: input.data,
+          provider: input.provider,
+          status: 'active',
+        })
+        .onConflictDoUpdate({
+          target: [paymentMethods.provider, paymentMethods.owner],
+          set: {
+            params: sql.raw(`excluded.${paymentMethods.params.name}`),
+            status: sql.raw(`excluded.${paymentMethods.status.name}`),
+          },
+        });
+    });
+  }
 
   getPaymentMethods() {
     const productionProviders = [
