@@ -29,7 +29,7 @@ export class TelegramService {
       .select()
       .from(vwVerificationCodes)
       .where((vc) =>
-        and(eq(vc.hash, code), eq(vwVerificationCodes.isExpired, false)),
+        and(eq(vc.code, code), eq(vwVerificationCodes.isExpired, false)),
       );
 
     if (result.length == 0)
@@ -54,7 +54,7 @@ export class TelegramService {
         .set({
           confirmed_at: new Date(),
         })
-        .where(eq(verificationCodes.hash, code));
+        .where(eq(verificationCodes.code, code));
 
       return id;
     });

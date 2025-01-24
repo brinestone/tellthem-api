@@ -2,6 +2,7 @@ import telegrafConfig from '@modules/webhook/config/telegraf.config';
 import { Logger } from '@nestjs/common';
 import { ConfigService, ConfigType } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import { patchNestJsSwagger } from 'nestjs-zod';
@@ -20,6 +21,7 @@ async function setupTelegramWebhook() {
   if (this.config.tunnelEnabled) {
     logger.log('tunnel enabled');
     logger.log('starting tunnel');
+    let isFirstTunnelling = true;
     const tunnel = await connect({
       authtoken: this.config.tunnelToken,
       port: this.config.tunnelPort,
@@ -27,9 +29,14 @@ async function setupTelegramWebhook() {
         switch (status) {
           case 'closed':
             logger.log('tunnel closed');
+            isFirstTunnelling = false;
             break;
           case 'connected':
-            logger.log('tunnel connected');
+            if (isFirstTunnelling) {
+              logger.log('tunnel connected');
+            } else {
+              logger.log('tunnel re-connected');
+            }
         }
       },
     });
@@ -59,7 +66,7 @@ from(NestFactory.create(AppModule))
         app,
       })();
 
-      return app;
+      return app as NestExpressApplication;
     }),
     concatMap((app) => {
       const configService = app.get(ConfigService);
@@ -70,6 +77,13 @@ from(NestFactory.create(AppModule))
         .setVersion('1.0')
         .addBearerAuth()
         .addOAuth2()
+        .addSecurity('query-token-auth', {
+          type: 'apiKey',
+          scheme: 'JWT',
+          in: 'query',
+          name: 'token',
+          'x-tokenName': 'token',
+        })
         .addServer(configService.getOrThrow<string>('ORIGIN'))
         .build();
       const document = SwaggerModule.createDocument(app, config);
@@ -83,12 +97,15 @@ from(NestFactory.create(AppModule))
           cdn: 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@latest',
         }),
       );
+      app.set('trust proxy', true);
       return app.listen(port, () =>
         rootLogger.log('Server started on ' + port),
       );
     }),
   )
   .subscribe({
-    error: (error: Error) =>
-      rootLogger.error('error occured while starting server', error.stack),
+    error: (error: Error) => {
+      rootLogger.error('error occured while starting server', error.stack);
+      process.exit(1);
+    },
   });

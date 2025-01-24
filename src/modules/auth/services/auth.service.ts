@@ -6,11 +6,13 @@ import {
   accessTokens,
   federatedCredentials,
   refreshTokens,
+  UserInfo,
   userPrefs,
   users,
   vwRefreshTokens,
 } from '@schemas/users';
 import { eq } from 'drizzle-orm';
+import { LRUCache } from 'lru-cache';
 import { randomBytes } from 'node:crypto';
 import { UserClaimsDto } from '../dto';
 
@@ -23,12 +25,10 @@ export type UserInput = {
 
 @Injectable()
 export class AuthService {
-  private logger = new Logger(AuthService.name);
-  constructor(
-    @Inject(DRIZZLE) private db: DrizzleDb,
-    private configService: ConfigService,
-    private jwtService: JwtService,
-  ) {}
+  async removeUser(id: number) {
+    await this.db.delete(users).where(eq(users.id, id));
+    return this.userCache.delete(id);
+  }
 
   async revokeTokenPair(
     accessTokenId: string,
@@ -133,9 +133,8 @@ export class AuthService {
   }
 
   async findUserById(id: number) {
-    return await this.db.query.users.findFirst({
-      where: (user, { eq }) => eq(user.id, id),
-    });
+    if (this.userCache.has(id)) return this.userCache.get(id);
+    return await this.userCache.fetch(id);
   }
 
   async updateCredentialAccessToken(
@@ -209,4 +208,23 @@ export class AuthService {
       where: (user, { eq }) => eq(user.credentials, credential),
     });
   }
+
+  private userCache = new LRUCache<number, UserInfo>({
+    size: 100,
+    maxSize: 1500,
+    sizeCalculation: (value) => Buffer.from(JSON.stringify(value)).byteLength,
+    ttl: 2 * 3600 * 1000,
+    fetchMethod: async (key) => {
+      this.logger.verbose('updating user cache');
+      return await this.db.query.users.findFirst({
+        where: (user, { eq }) => eq(user.id, key),
+      });
+    },
+  });
+  private logger = new Logger(AuthService.name);
+  constructor(
+    @Inject(DRIZZLE) private db: DrizzleDb,
+    private configService: ConfigService,
+    private jwtService: JwtService,
+  ) {}
 }

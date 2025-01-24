@@ -47,7 +47,7 @@ export class FinanceService {
     maxSize: 500,
     sizeCalculation: () => 1,
     ttl: 3600 * 1000 * 12,
-    fetchMethod: async (key, value, { signal }) => {
+    fetchMethod: async (key, _, { signal }) => {
       const [src, dest] = key.split('-');
       const apiKey = this.configService.getOrThrow<string>('API_LAYER_KEY');
 

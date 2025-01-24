@@ -1,6 +1,5 @@
 import { updatePrefSchema } from '@schemas/users';
 import { createZodDto } from 'nestjs-zod';
-import { hashThese } from 'src/util';
 import { z } from 'zod';
 
 export const UserClaimsSchema = z.object({
@@ -13,10 +12,7 @@ export const UserClaimsSchema = z.object({
 });
 
 export const TelegramCodeVerificationSchema = z.object({
-  code: z
-    .string()
-    .length(6)
-    .transform((arg) => hashThese(arg)),
+  code: z.string().length(6),
 });
 
 export const TelegramBotMessageSchema = z.object({
