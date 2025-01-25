@@ -18,6 +18,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ApiBearerAuth, ApiOAuth2 } from '@nestjs/swagger';
 import { UserInfo } from '@schemas/users';
 import { Request, Response } from 'express';
 
@@ -46,6 +47,7 @@ export class AuthController {
 
   @Get('revoke-token')
   @Public()
+  @ApiBearerAuth()
   @UseGuards(RevokeGuard)
   async handleTokenRevoke(@Req() req: Request, @User() { id }: UserInfo) {
     const { access, refresh } = req['tokens'];
@@ -54,6 +56,7 @@ export class AuthController {
 
   @Public()
   @Get('google')
+  @ApiOAuth2(['profile,email'], 'google')
   @UseGuards(GoogleGuard)
   handleGoogleSignIn() {}
 

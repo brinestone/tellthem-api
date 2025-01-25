@@ -3,13 +3,36 @@ import { BALANCE_UPDATED } from '@events/wallet';
 import { Public, User } from '@modules/auth/decorators';
 import { UserPrefsUpdatedEvent } from '@modules/auth/events';
 import { WalletBalanceUpdatedEvent } from '@modules/wallet/events';
-import { Controller, Get, Ip, Req, Sse } from '@nestjs/common';
+import { Controller, Get, Ip, Query, Req, Sse, UsePipes } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiProduces,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { UserInfo } from '@schemas/users';
 import { Request } from 'express';
-import { Subject } from 'rxjs';
+import { filter, from, Subject, toArray } from 'rxjs';
 import * as CountryData from './assets/countries.json';
+import { z } from 'zod';
+import { createZodDto, ZodValidationPipe } from 'nestjs-zod';
+
+export const GetCountryByIso2CodeSchema = z.object({
+  alpha2Code: z
+    .string()
+    .length(2)
+    .transform((val) => val.toUpperCase())
+    .or(
+      z
+        .string()
+        .transform((val) => val.toUpperCase().split(','))
+        .pipe(z.string().length(2).array()),
+    ),
+});
+
+class GetCountryByIsoCodeDto extends createZodDto(GetCountryByIso2CodeSchema) {}
 
 interface MessageEvent {
   data: string | object;
@@ -26,15 +49,35 @@ export class AppController {
   >();
   constructor() {}
 
-  @Get('/countries')
+  @Get('countries')
   @Public()
   @ApiOperation({
     summary: 'Get supported countries',
     description: 'Retrieve all supported countries',
   })
-  @ApiTags('Public')
+  @ApiTags('Public Api')
   findAllCountries() {
     return CountryData;
+  }
+  @Get('countries/find')
+  @ApiTags('Public Api')
+  @UsePipes(ZodValidationPipe)
+  @ApiQuery({
+    required: false,
+    description: 'A comma-separated list of country ISO-2 codes',
+    type: String,
+  })
+  findCountriesByIso2Code(@Query() input: GetCountryByIsoCodeDto) {
+    return from(CountryData).pipe(
+      filter(({ alpha2Code: code }) => {
+        if (typeof input.alpha2Code == 'string') {
+          return code == input.alpha2Code;
+        } else {
+          return input.alpha2Code.includes(code);
+        }
+      }),
+      toArray(),
+    );
   }
 
   @OnEvent(PREFS_UPDATED)
@@ -60,6 +103,12 @@ export class AppController {
   }
 
   @Sse('updates')
+  @ApiProduces('text/event-stream')
+  @ApiOperation({
+    summary: 'Real-time updates',
+    description: 'Rceive real-time update events for a user',
+  })
+  @ApiBearerAuth()
   getUpdates(@Ip() ip: string, @Req() req: Request, @User() user: UserInfo) {
     let dict = this.notificationSubjects.get(user.id);
     if (!dict) {

@@ -77,13 +77,6 @@ from(NestFactory.create(AppModule))
         .setVersion('1.0')
         .addBearerAuth()
         .addOAuth2()
-        .addSecurity('query-token-auth', {
-          type: 'apiKey',
-          scheme: 'JWT',
-          in: 'query',
-          name: 'token',
-          'x-tokenName': 'token',
-        })
         .addServer(configService.getOrThrow<string>('ORIGIN'))
         .build();
       const document = SwaggerModule.createDocument(app, config);

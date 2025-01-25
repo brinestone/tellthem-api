@@ -12,6 +12,11 @@ import { TelegrafService } from './services/telegraf.service';
 function telegramCommandMiddleware(db: DrizzleDb) {
   const logger = new Logger('telegram-middleware');
   return async (ctx: Context, next: () => Promise<void>) => {
+    if (ctx.from?.is_bot) {
+      await ctx.reply('Access denied. No bots allowed');
+      await ctx.banChatMember(ctx.from.id);
+      return;
+    }
     const now = Date.now();
     try {
       if (

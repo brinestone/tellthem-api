@@ -10,12 +10,14 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { fromZodError } from 'zod-validation-error';
 import { ExchangerateQuerySchema } from './dto';
 import { FinanceService } from './finance.service';
 
 @Controller('finance')
+@Public()
 export class FinanceController {
   private logger = new Logger(FinanceController.name);
   constructor(
@@ -25,7 +27,6 @@ export class FinanceController {
   ) {}
 
   @Get('exchange_rates')
-  @Public()
   async getExchangeRates(@Req() req: Request) {
     const { success, data, error } = ExchangerateQuerySchema.safeParse(
       req.query,
@@ -40,7 +41,7 @@ export class FinanceController {
   }
 
   @Get('currencies')
-  @Public()
+  @ApiTags('Public Api')
   getCurrencies() {
     return this.financeService.getCurrencies();
   }

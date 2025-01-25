@@ -1,4 +1,8 @@
-import { CAMPAIGN_DELETED, NEW_CAMPAIGN } from '@events/campaign';
+import {
+  CAMPAIGN_DELETED,
+  NEW_CAMPAIGN,
+  CAMPAIGN_UPDATED,
+} from '@events/campaign';
 import { User } from '@modules/auth/decorators';
 import {
   Body,
@@ -21,7 +25,11 @@ import {
   NewCampaignDto,
   UpdateCampaignDto,
 } from './dto/campaign.dto';
-import { CampaignCreatedEvent, CampaignDeletedEvent } from './events';
+import {
+  CampaignCreatedEvent,
+  CampaignDeletedEvent,
+  CampaignUpdatedEvent,
+} from './events';
 import { ZodValidationPipe } from 'nestjs-zod';
 
 @Controller('campaign')
@@ -65,10 +73,14 @@ export class CampaignController {
     updateCampaignDto: UpdateCampaignDto,
     @User() { id: userId }: UserInfo,
   ) {
-    return await this.campaignService.updateCampaignInfo(
+    await this.campaignService.updateCampaignInfo(
       userId,
       id,
       updateCampaignDto,
+    );
+    void this.eventEmitter.emitAsync(
+      CAMPAIGN_UPDATED,
+      new CampaignUpdatedEvent(id),
     );
   }
 

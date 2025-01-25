@@ -73,17 +73,14 @@ export class ConnectionController {
       }
 
       this.logger.debug('Generating verification codes');
-      const now = Date.parse(new Date().toUTCString());
-      const { code, expiresAt } =
-        await this.userService.generateVerificationCode(
-          {
-            chatId: context.chat?.id,
-            userInfo: context.from,
-          },
-          String(context.from.id),
-        );
-      const diff = new Date(expiresAt).valueOf() - now;
-      const remainingMinutes = Math.floor(Math.max(diff, 0) / 60_000);
+      const { code } = await this.userService.generateVerificationCode(
+        {
+          chatId: context.chat?.id,
+          userInfo: context.from,
+        },
+        String(context.from.id),
+      );
+
       const frontend = this.cs.getOrThrow<string>('VALID_AUDIENCE');
       const settingsPageLink =
         this.cs.get<string>('NODE_ENV') === 'development'
@@ -92,7 +89,7 @@ export class ConnectionController {
       const message = `
 Hi [${context.from.first_name}](tg://user?id=${context.from.id}), thanks for connecting!
 
-${settingsPageLink} and enter the code shown below, to finish connecting your account and start earning your rewards. The code will expire in ${remainingMinutes} minute${remainingMinutes == 1 ? '' : 's'}.
+${settingsPageLink} and enter the code shown below, to finish connecting your account and start earning your rewards.
 
 *${code}*
   `;
@@ -101,8 +98,6 @@ ${settingsPageLink} and enter the code shown below, to finish connecting your ac
       await context.replyWithMarkdown(message);
     } catch (e) {
       this.logger.error(e.message, e.stack);
-    } finally {
-      this.logger.log('start command handled');
     }
   }
 

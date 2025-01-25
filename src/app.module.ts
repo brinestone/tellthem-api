@@ -1,6 +1,9 @@
 import { AuthModule } from '@modules/auth';
+import { JwtGuard } from '@modules/auth/guards';
+import { BlobModule } from '@modules/blob';
 import { CampaignModule } from '@modules/campaign';
 import { FinanceModule } from '@modules/finance';
+import { WalletModule } from '@modules/wallet';
 import { WebhookModule } from '@modules/webhook';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -8,8 +11,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
 import { LoggerMiddleware } from './middleware/logger.middleware';
-import { JwtGuard } from '@modules/auth/guards';
-import { WalletModule } from '@modules/wallet';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { WalletModule } from '@modules/wallet';
     WalletModule,
     FinanceModule,
     WebhookModule,
+    BlobModule,
   ],
   controllers: [AppController],
   providers: [

@@ -13,7 +13,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UserInfo } from '@schemas/users';
 import { zodToOpenAPI, ZodValidationPipe } from 'nestjs-zod';
 import {
@@ -102,13 +102,15 @@ export class PaymentController {
     }
   }
 
-  @Get('providers')
   @Public()
+  @ApiTags('Public Api')
+  @Get('providers')
   getPaymentMethodProviders() {
     return this.financeService.getPaymentMethods();
   }
 
   @Get('methods')
+  @ApiBearerAuth()
   async findUserPaymentMethods(@User() { id }: UserInfo) {
     return this.financeService.findUserPaymentMethods(id);
   }

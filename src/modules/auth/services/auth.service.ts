@@ -212,7 +212,11 @@ export class AuthService {
   private userCache = new LRUCache<number, UserInfo>({
     size: 100,
     maxSize: 1500,
-    sizeCalculation: (value) => Buffer.from(JSON.stringify(value)).byteLength,
+    sizeCalculation: (value) => {
+      return Object.entries(value)
+        .map(([k, v]) => String(k).length + String(v).length)
+        .reduce((acc, curr) => acc + curr, 0);
+    },
     ttl: 2 * 3600 * 1000,
     fetchMethod: async (key) => {
       this.logger.verbose('updating user cache');
