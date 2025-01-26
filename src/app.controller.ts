@@ -3,7 +3,15 @@ import { BALANCE_UPDATED } from '@events/wallet';
 import { Public, User } from '@modules/auth/decorators';
 import { UserPrefsUpdatedEvent } from '@modules/auth/events';
 import { WalletBalanceUpdatedEvent } from '@modules/wallet/events';
-import { Controller, Get, Ip, Query, Req, Sse, UsePipes } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Ip,
+  Logger,
+  Query,
+  Sse,
+  UsePipes,
+} from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   ApiBearerAuth,
@@ -13,11 +21,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserInfo } from '@schemas/users';
-import { Request } from 'express';
-import { filter, from, Subject, toArray } from 'rxjs';
-import * as CountryData from './assets/countries.json';
-import { z } from 'zod';
 import { createZodDto, ZodValidationPipe } from 'nestjs-zod';
+import { filter, from, Subject, tap, toArray } from 'rxjs';
+import { z } from 'zod';
+import * as CountryData from './assets/countries.json';
 
 export const GetCountryByIso2CodeSchema = z.object({
   alpha2Code: z
@@ -43,6 +50,7 @@ interface MessageEvent {
 
 @Controller()
 export class AppController {
+  private logger = new Logger(AppController.name);
   private notificationSubjects = new Map<
     number,
     Record<string, Subject<MessageEvent>>
@@ -109,25 +117,33 @@ export class AppController {
     description: 'Rceive real-time update events for a user',
   })
   @ApiBearerAuth()
-  getUpdates(@Ip() ip: string, @Req() req: Request, @User() user: UserInfo) {
+  getUpdates(@Ip() ip: string, @User() user: UserInfo) {
+    this.logger.log('setting up updates sse channel for ' + ip);
     let dict = this.notificationSubjects.get(user.id);
     if (!dict) {
       dict = { [ip]: new Subject<MessageEvent>() };
       this.notificationSubjects.set(user.id, dict);
     }
-    req.on('finish', () => {
-      if (!dict || Object.keys(dict).length == 0) {
-        this.notificationSubjects.delete(user.id);
-        return;
-      }
+    return dict[ip].asObservable().pipe(
+      tap({
+        subscribe: () => {
+          this.logger.log('updates sse channel setup for ' + ip);
+        },
+        unsubscribe: () => {
+          this.logger.log('closing up updates sse channel for ' + ip);
+          if (!dict || Object.keys(dict).length == 0) {
+            this.notificationSubjects.delete(user.id);
+            return;
+          }
 
-      dict[ip].complete();
-      delete dict[ip];
+          dict[ip].complete();
+          delete dict[ip];
 
-      if (Object.keys(dict).length == 0) {
-        this.notificationSubjects.delete(user.id);
-      }
-    });
-    return dict[ip].asObservable();
+          if (Object.keys(dict).length == 0) {
+            this.notificationSubjects.delete(user.id);
+          }
+        },
+      }),
+    );
   }
 }

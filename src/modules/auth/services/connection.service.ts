@@ -9,8 +9,8 @@ import { and, eq } from 'drizzle-orm';
 import { TelegramAccountConnectionDataSchema } from '../dto';
 
 @Injectable()
-export class TelegramService {
-  async removeConnection(user: number) {
+export class ConnectionService {
+  async removeTelegramConnection(user: number) {
     const result = await this.db.transaction((t) =>
       t
         .delete(accountConnections)
@@ -20,9 +20,18 @@ export class TelegramService {
             eq(accountConnections.user, user),
           ),
         )
-        .returning({ id: accountConnections.id }),
+        .returning({
+          id: accountConnections.id,
+          params: accountConnections.params,
+        }),
     );
-    return result[0]?.id;
+    const ans = result[0];
+    if (!ans) return null;
+
+    return {
+      id: ans.id,
+      params: TelegramAccountConnectionDataSchema.parse(ans.params),
+    };
   }
   async registerTelegramConnection(user: number, code: string) {
     const result = await this.db

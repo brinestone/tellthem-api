@@ -1,14 +1,17 @@
-import { Controller, Get } from '@nestjs/common';
-import { CategoryService } from './services/category.service';
 import { Public } from '@modules/auth/decorators';
+import { Controller, Get, Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { LookupCampaignSchema } from './dto/category.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { CategoryService } from './services/category.service';
 
-@Controller('/categories')
+@Controller('categories')
 @Public()
 export class CategoryController {
-  constructor(private categoryService: CategoryService) {}
+  private logger = new Logger(CategoryController.name);
+  constructor(private categoryService: CategoryService) {
+    this.logger.verbose('listening to /categories command');
+  }
 
   @Get()
   @ApiTags('Public Api')

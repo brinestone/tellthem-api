@@ -14,7 +14,7 @@ import { RefreshStrategy } from './strategies/refresh.strategy';
 import { UserController } from './controllers/auth/user.controller';
 import { UserService } from './services';
 import { ConnectionController } from './controllers/auth/connection.controller';
-import { TelegramService } from './services/telegram.service';
+import { ConnectionService } from './services/connection.service';
 import { WebhookModule } from '@modules/webhook';
 
 @Module({
@@ -28,7 +28,7 @@ import { WebhookModule } from '@modules/webhook';
   ],
   providers: [
     AuthService,
-    TelegramService,
+    ConnectionService,
     GoogleStrategy,
     JwtStrategy,
     RevokeStrategy,

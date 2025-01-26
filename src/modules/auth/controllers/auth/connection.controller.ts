@@ -12,7 +12,7 @@ import {
   AccountConnectionDeletedEvent,
 } from '@modules/auth/events';
 import { UserService } from '@modules/auth/services';
-import { TelegramService } from '@modules/auth/services/telegram.service';
+import { ConnectionService } from '@modules/auth/services/connection.service';
 import {
   Controller,
   Get,
@@ -38,11 +38,12 @@ export class ConnectionController {
   private logger = new Logger(ConnectionController.name);
   constructor(
     private userService: UserService,
-    private telegramService: TelegramService,
+    private telegramService: ConnectionService,
     private eventEmitter: EventEmitter2,
     private cs: ConfigService,
-    bot: Telegraf,
+    private bot: Telegraf,
   ) {
+    this.logger.verbose('listening to /start command');
     bot.command('start', async (ctx) => {
       await this.handleTelegramStartCommand(ctx);
     });
@@ -113,12 +114,21 @@ ${settingsPageLink} and enter the code shown below, to finish connecting your ac
     description: 'The disconnection was successfull',
   })
   async removeTelegramAccountConnection(@User() user: UserInfo) {
-    const id = await this.telegramService.removeConnection(user.id);
-    if (!id) throw new NotFoundException('Connection not found');
+    const result = await this.telegramService.removeTelegramConnection(user.id);
+    if (!result) throw new NotFoundException('Connection not found');
 
+    const {
+      id,
+      params: { chatId },
+    } = result;
     void this.eventEmitter.emitAsync(
       ACCOUNT_CONNECTION_DELETED,
       new AccountConnectionDeletedEvent('telegram', id, user.id),
+    );
+
+    void this.bot.telegram.sendMessage(
+      chatId,
+      'Account disconnection successful. Goodbye',
     );
   }
 

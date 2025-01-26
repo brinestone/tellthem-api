@@ -7,7 +7,6 @@ import { and, eq } from 'drizzle-orm';
 import { Context, Telegraf } from 'telegraf';
 import { MessageEntity } from 'telegraf/typings/core/types/typegram';
 import telegrafConfig from './config/telegraf.config';
-import { TelegrafService } from './services/telegraf.service';
 
 function telegramCommandMiddleware(db: DrizzleDb) {
   const logger = new Logger('telegram-middleware');
@@ -57,7 +56,7 @@ function telegramCommandMiddleware(db: DrizzleDb) {
       const diff = Date.now() - now;
       logger.verbose(
         (ctx.message as unknown as { text: string }).text +
-          ' command handled in +' +
+          ' command handled | +' +
           diff +
           'ms',
       );
@@ -81,7 +80,6 @@ function telegramCommandMiddleware(db: DrizzleDb) {
         return bot;
       },
     },
-    TelegrafService,
   ],
   exports: [Telegraf, ConfigModule],
 })
