@@ -1,15 +1,25 @@
 import { DRIZZLE, DrizzleDb } from '@modules/drizzle';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   accountConnections,
+  UserInfo,
+  users,
   verificationCodes,
   vwVerificationCodes,
 } from '@schemas/users';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import { TelegramAccountConnectionDataSchema } from '../dto';
+import { LRUCache } from 'lru-cache';
 
 @Injectable()
 export class ConnectionService {
+  async findUserByConnection(provider: 'telegram', providerId: string) {
+    const key = `${provider},${providerId}`;
+    if (!this.cache.has(key)) {
+      return await this.cache.fetch(key);
+    }
+    return this.cache.get(key);
+  }
   async removeTelegramConnection(user: number) {
     const result = await this.db.transaction((t) =>
       t
@@ -69,5 +79,33 @@ export class ConnectionService {
     });
   }
 
+  private cache = new LRUCache<string, UserInfo>({
+    size: 300,
+    maxSize: 300000,
+    ttl: 2 * 3600 * 1000,
+    sizeCalculation: (v) => {
+      return Object.entries(v)
+        .map(([k, v]) => String(k).length + String(v).length)
+        .reduce((acc, curr) => acc + curr, 0);
+    },
+    fetchMethod: async (key) => {
+      this.logger.verbose('updating connections cache');
+      const [provider, providerId] = key.split(',');
+      const result = await this.db
+        .selectDistinct()
+        .from(users)
+        .innerJoin(accountConnections, eq(users.id, accountConnections.user))
+        .where(
+          and(
+            eq(accountConnections.provider, provider as any),
+            eq(accountConnections.providerId, providerId),
+            ne(accountConnections.status, 'inactive'),
+          ),
+        )
+        .limit(1);
+      return result[0]?.users;
+    },
+  });
+  private logger = new Logger(ConnectionService.name);
   constructor(@Inject(DRIZZLE) private db: DrizzleDb) {}
 }

@@ -27,6 +27,7 @@
     "tunnel": "pnpm tsx scripts/tunnel/index.ts"
   },
   "dependencies": {
+    "@hachther/mesomb": "^1.1.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.1",

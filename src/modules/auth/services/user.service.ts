@@ -1,9 +1,7 @@
 import { DRIZZLE, DrizzleDb } from '@modules/drizzle';
 import { Inject, Injectable } from '@nestjs/common';
 import {
-  accountConnections,
   userPrefs,
-  users,
   verificationCodes,
   vwVerificationCodes,
 } from '@schemas/users';
@@ -49,20 +47,6 @@ export class UserService {
 
     return { code, expiresAt: new Date(createdAt.valueOf() + 15 * 60_000) };
   }
-  async findUserByConnection(provider: 'telegram', providerId: string) {
-    const result = await this.db
-      .select()
-      .from(accountConnections)
-      .innerJoin(users, (ac) => eq(users.id, ac.user))
-      .where(
-        and(
-          eq(accountConnections.providerId, providerId),
-          eq(accountConnections.provider, provider),
-        ),
-      )
-      .limit(1);
-    return result[0]?.users;
-  }
   async findUserConnections(id: number) {
     return await this.db.query.accountConnections.findMany({
       columns: {
@@ -85,5 +69,6 @@ export class UserService {
       where: (prefs, { eq }) => eq(prefs.user, user),
     });
   }
+
   constructor(@Inject(DRIZZLE) private db: DrizzleDb) {}
 }

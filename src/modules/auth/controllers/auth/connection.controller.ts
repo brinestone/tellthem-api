@@ -38,7 +38,7 @@ export class ConnectionController {
   private logger = new Logger(ConnectionController.name);
   constructor(
     private userService: UserService,
-    private telegramService: ConnectionService,
+    private connectionService: ConnectionService,
     private eventEmitter: EventEmitter2,
     private cs: ConfigService,
     private bot: Telegraf,
@@ -59,7 +59,7 @@ export class ConnectionController {
       }
 
       this.logger.debug('Finding existing connected user');
-      const existingUser = await this.userService.findUserByConnection(
+      const existingUser = await this.connectionService.findUserByConnection(
         'telegram',
         String(context.from.id),
       );
@@ -114,7 +114,9 @@ ${settingsPageLink} and enter the code shown below, to finish connecting your ac
     description: 'The disconnection was successfull',
   })
   async removeTelegramAccountConnection(@User() user: UserInfo) {
-    const result = await this.telegramService.removeTelegramConnection(user.id);
+    const result = await this.connectionService.removeTelegramConnection(
+      user.id,
+    );
     if (!result) throw new NotFoundException('Connection not found');
 
     const {
@@ -150,10 +152,8 @@ ${settingsPageLink} and enter the code shown below, to finish connecting your ac
     @Query(new ZodValidationPipe()) input: TelegramCodeVerificationInput,
     @User() { id }: UserInfo,
   ) {
-    const connectionId = await this.telegramService.registerTelegramConnection(
-      id,
-      input.code,
-    );
+    const connectionId =
+      await this.connectionService.registerTelegramConnection(id, input.code);
 
     void this.eventEmitter.emitAsync(
       NEW_ACCOUNT_CONNECTION,

@@ -42,13 +42,13 @@ async function setupTelegramWebhook() {
     });
     logger.log('tunnel started. updating bot launch configuration');
     webhook.domain = tunnel;
+    this.app.use(await this.bot.createWebhook(webhook));
+    logger.log('telegram bot launched successfully');
   } else {
     logger.log('tunnel disabled');
   }
   logger.log('launching telegram bot');
-
-  this.app.use(await this.bot.createWebhook(webhook));
-  logger.log('telegram bot launched successfully');
+  this.bot.launch();
 }
 
 const rootLogger = new Logger('ROOT');

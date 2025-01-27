@@ -7,6 +7,7 @@ import { and, eq } from 'drizzle-orm';
 import { Context, Telegraf } from 'telegraf';
 import { MessageEntity } from 'telegraf/typings/core/types/typegram';
 import telegrafConfig from './config/telegraf.config';
+import { WebhookController } from './controllers/payment-os/webhook.controller';
 
 function telegramCommandMiddleware(db: DrizzleDb) {
   const logger = new Logger('telegram-middleware');
@@ -82,5 +83,6 @@ function telegramCommandMiddleware(db: DrizzleDb) {
     },
   ],
   exports: [Telegraf, ConfigModule],
+  controllers: [WebhookController],
 })
 export class WebhookModule {}

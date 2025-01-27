@@ -1,9 +1,7 @@
-import 'dotenv/config';
-import { readdir } from 'node:fs/promises';
-import { join } from 'node:path';
-import ngrok from 'ngrok';
-import { pathToFileURL } from 'node:url';
 import { Logger } from '@nestjs/common';
+import 'dotenv/config';
+import ngrok from 'ngrok';
+import { readdir } from 'node:fs/promises';
 
 export type TunnelInit = (url: string) => Promise<void>;
 
@@ -12,7 +10,7 @@ const logger = new Logger('Tunnel');
 
 export async function setupTunnel() {
   try {
-    logger.log('Starting Tunnel... on port ', port);
+    logger.log('Starting Tunnel... on port ' + port);
     const entries = await readdir(__dirname);
     if (entries.length <= 1) {
       logger.log('No tunnel scripts available. Shutting down...');
@@ -22,15 +20,15 @@ export async function setupTunnel() {
       authtoken: process.env['NGROK_TOKEN'],
       port,
     });
-    logger.log(`Tunnelling port localhost:${port} -> ${tunnelUrl}`);
+    logger.log(`Tunnelling port http://localhost:${port} -> ${tunnelUrl}`);
 
-    for (const entry of entries) {
-      if (entry == '.' || entry == '..' || entry == 'index.ts') continue;
-      const url = pathToFileURL(join(__dirname, entry));
-      const file = url.toString();
-      const init = await import(file).then((mod) => mod.default as TunnelInit);
-      await init(tunnelUrl);
-    }
+    // for (const entry of entries) {
+    //   if (entry == '.' || entry == '..' || entry == 'index.ts') continue;
+    //   const url = pathToFileURL(join(__dirname, entry));
+    //   const file = url.toString();
+    //   const init = await import(file).then((mod) => mod.default as TunnelInit);
+    //   await init(tunnelUrl);
+    // }
   } catch (e) {
     logger.error(e.message, e.stack);
     process.exit(1);

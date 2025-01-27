@@ -202,7 +202,8 @@ export const updatePrefSchema = createUpdateSchema(userPrefs)
     currency: true,
     language: true,
   })
-  .describe("Data for updating a user's preferences");
+  .describe("Data for updating a user's preferences")
+  .partial();
 
 export const UserPrefsSchema = createSelectSchema(userPrefs).omit({
   user: true,
