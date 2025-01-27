@@ -1,5 +1,5 @@
-import { walletCreditAllocations } from '@schemas/finance';
-import { eq, sql } from 'drizzle-orm';
+import { walletCreditAllocations, walletTransactions } from '@schemas/finance';
+import { and, count, eq, sql } from 'drizzle-orm';
 import {
   bigint,
   date,
@@ -18,7 +18,35 @@ import {
   createUpdateSchema,
 } from 'drizzle-zod';
 import { z } from 'zod';
-import { users } from './users';
+import { accountConnections, users } from './users';
+
+export const broadcastViews = pgTable('broadcast_views', {
+  id: uuid().primaryKey().defaultRandom(),
+  publication: bigint({ mode: 'number' }).references(
+    () => campaignPublications.id,
+    { onDelete: 'set null' },
+  ),
+  broadcast: uuid()
+    .notNull()
+    .references(() => publicationBroadcasts.id, { onDelete: 'cascade' }),
+  viewedAt: timestamp({ mode: 'date' }).notNull().defaultNow(),
+  ip: varchar({ length: 39 }),
+});
+
+export const publicationBroadcasts = pgTable('publication_broadcasts', {
+  id: uuid().primaryKey().defaultRandom(),
+  connection: uuid()
+    .notNull()
+    .references(() => accountConnections.id),
+  publication: bigint({ mode: 'number' }).references(
+    () => campaignPublications.id,
+    {
+      onDelete: 'set null',
+    },
+  ),
+  broadcastAt: timestamp({ mode: 'date' }).notNull().defaultNow(),
+  slug: varchar({ length: 6 }).notNull().unique(),
+});
 
 export const blobStatus = pgEnum('blob_storage', ['temporary', 'permanent']);
 export const campaignBlobs = pgTable('campaign_blobs', {
@@ -130,6 +158,43 @@ export const campaignPublications = pgTable('campaign_publications', {
   publishAfter: date({ mode: 'string' }).defaultNow(),
   publishBefore: date({ mode: 'string' }),
 });
+
+export const vwCampaignPublications = pgView('vw_campaign_publications').as(
+  (qb) => {
+    return qb
+      .select({
+        totalBroadcasts: count(publicationBroadcasts.id).as('broadcast_count'),
+        totalClicks: count(broadcastViews.id).as('click_count'),
+        totalExhaustedCredits:
+          sql<number>`COALESCE(SUM(${walletTransactions.value}), 0)`.as(
+            'total_exhausted_credits',
+          ),
+        totalAllocatedCredits: walletCreditAllocations.allocated,
+        creditAllocation: campaignPublications.creditAllocation,
+        campaign: campaignPublications.campaign,
+        updatedAt: campaignPublications.updatedAt,
+        id: campaignPublications.id,
+        createdAt: campaignPublications.createdAt,
+      })
+      .from(campaignPublications)
+      .leftJoin(campaigns, (r) => eq(campaigns.id, r.campaign))
+      .leftJoin(publicationBroadcasts, (r) =>
+        eq(publicationBroadcasts.publication, r.id),
+      )
+      .leftJoin(broadcastViews, (r) => eq(broadcastViews.publication, r.id))
+      .leftJoin(walletCreditAllocations, (r) =>
+        eq(walletCreditAllocations.id, r.creditAllocation),
+      )
+      .leftJoin(walletTransactions, (r) =>
+        and(
+          eq(walletTransactions.creditAllocation, r.creditAllocation),
+          eq(walletTransactions.status, 'complete'),
+          eq(walletTransactions.type, 'reward'),
+        ),
+      )
+      .groupBy(walletCreditAllocations.id, campaignPublications.id);
+  },
+);
 
 export const newPublicationSchema = createInsertSchema(campaignPublications)
   .omit({

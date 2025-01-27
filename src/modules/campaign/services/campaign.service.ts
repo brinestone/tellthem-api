@@ -164,6 +164,13 @@ export class CampaignService {
         .from(campaignPublications)
         .where(eq(campaignPublications.campaign, campaign));
 
+      await t.delete(walletCreditAllocations).where(
+        inArray(
+          walletCreditAllocations.id,
+          publications.map(({ allocation }) => allocation),
+        ),
+      );
+
       await t.delete(campaignPublications).where(
         inArray(
           campaignPublications.id,
