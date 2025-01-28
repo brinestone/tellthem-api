@@ -37,6 +37,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.0.2",
     "@scalar/nestjs-api-reference": "^0.3.177",
+    "axios": "^1.7.9",
     "drizzle-orm": "^0.38.4",
     "drizzle-zod": "^0.6.1",
     "google-libphonenumber": "^3.2.40",

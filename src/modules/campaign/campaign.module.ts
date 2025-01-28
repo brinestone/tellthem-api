@@ -12,5 +12,6 @@ import { WebhookModule } from '@modules/webhook';
   imports: [DrizzleModule, EventEmitterModule, WebhookModule],
   controllers: [CampaignController, PublicationController, CategoryController],
   providers: [CampaignService, CategoryService],
+  exports: [CampaignService],
 })
 export class CampaignModule {}

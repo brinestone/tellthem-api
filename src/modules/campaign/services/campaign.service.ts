@@ -9,6 +9,7 @@ import {
   CampaignLookupSchema,
   campaignPublications,
   campaigns,
+  publicationBroadcasts,
 } from '@schemas/campaigns';
 import {
   fundingBalances,
@@ -23,6 +24,36 @@ import { NewPublicationDto } from '../dto/publication.dto';
 @Injectable()
 export class CampaignService {
   constructor(@Inject(DRIZZLE) private db: DrizzleDb) {}
+
+  async markBroadcastsAsSent(broadcasts: string[]) {
+    const now = new Date(new Date().toUTCString());
+    await this.db.transaction((t) =>
+      t
+        .update(publicationBroadcasts)
+        .set({ sentAt: now })
+        .where(inArray(publicationBroadcasts.id, broadcasts)),
+    );
+  }
+
+  async createBulkBroadcasts(publication: number, connections: string[]) {
+    const result = await this.db.transaction((t) =>
+      t
+        .insert(publicationBroadcasts)
+        .values(
+          connections.map((connection) => {
+            return {
+              connection,
+              publication,
+            };
+          }),
+        )
+        .returning({
+          id: publicationBroadcasts.id,
+          connection: publicationBroadcasts.connection,
+        }),
+    );
+    return result.map(({ id, connection }) => ({ id, connection }));
+  }
 
   async createPublication(
     owner: number,
@@ -84,7 +115,7 @@ export class CampaignService {
       })
       .from(campaignPublications)
       .innerJoin(campaigns, (c) =>
-        and(eq(campaigns.id, c.campaign), eq(campaigns.createdBy, owner)),
+        and(eq(campaigns.id, c.campaign), eq(campaigns.owner, owner)),
       )
       .innerJoin(vwCreditAllocations, (c) =>
         eq(c.creditAllocation.id, vwCreditAllocations.id),
@@ -97,7 +128,7 @@ export class CampaignService {
     const [{ id }] = await this.db.transaction((t) =>
       t
         .insert(campaigns)
-        .values({ ...input, createdBy: owner })
+        .values({ ...input, owner })
         .returning({ id: campaigns.id }),
     );
     return id;
@@ -112,7 +143,7 @@ export class CampaignService {
         categories: campaigns.categories,
       })
       .from(campaigns)
-      .where(eq(campaigns.createdBy, user))
+      .where(eq(campaigns.owner, user))
       .orderBy(desc(campaigns.updatedAt))
       .offset(page * size)
       .limit(size);
@@ -120,7 +151,7 @@ export class CampaignService {
     const [{ count: total }] = await this.db
       .select({ count: count() })
       .from(campaigns)
-      .where(eq(campaigns.createdBy, user));
+      .where(eq(campaigns.owner, user));
 
     return {
       data: z.array(CampaignLookupSchema).parse(data),
@@ -133,7 +164,7 @@ export class CampaignService {
   async findCampaign(id: number, userId: number) {
     return await this.db.query.campaigns.findFirst({
       where: (campaign, { and, eq }) =>
-        and(eq(campaign.id, id), eq(campaign.createdBy, userId)),
+        and(eq(campaign.id, id), eq(campaign.owner, userId)),
     });
   }
 
@@ -146,7 +177,7 @@ export class CampaignService {
       t
         .update(campaigns)
         .set(input)
-        .where(and(eq(campaigns.id, campaign), eq(campaigns.createdBy, owner))),
+        .where(and(eq(campaigns.id, campaign), eq(campaigns.owner, owner))),
     );
 
     if (rowCount == 0) {
@@ -179,7 +210,7 @@ export class CampaignService {
       );
       await t
         .delete(campaigns)
-        .where(and(eq(campaigns.id, campaign), eq(campaigns.createdBy, owner)));
+        .where(and(eq(campaigns.id, campaign), eq(campaigns.owner, owner)));
     });
   }
 }

@@ -8,6 +8,7 @@ export class CampaignPublishedEvent extends BaseCampaignEvent {
   constructor(
     readonly campaign: number,
     readonly publication: number,
+    readonly owner: number,
   ) {
     super(campaign);
   }

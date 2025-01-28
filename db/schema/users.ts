@@ -213,3 +213,4 @@ export const UserPrefsSchema = createSelectSchema(userPrefs).omit({
 export const UserSchema = createSelectSchema(users);
 
 export const AccountConnectionSchema = createSelectSchema(accountConnections);
+export type AccountConnection = z.infer<typeof AccountConnectionSchema>;

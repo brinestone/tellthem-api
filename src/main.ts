@@ -42,6 +42,7 @@ async function setupTelegramWebhook() {
     });
     logger.log('tunnel started. updating bot launch configuration');
     webhook.domain = tunnel;
+    process.env.TUNNEL_ORIGIN = tunnel;
   } else {
     logger.log('tunnel disabled');
   }

@@ -2,6 +2,7 @@ import { walletCreditAllocations, walletTransactions } from '@schemas/finance';
 import { and, count, eq, sql } from 'drizzle-orm';
 import {
   bigint,
+  boolean,
   date,
   interval,
   pgEnum,
@@ -35,17 +36,18 @@ export const broadcastViews = pgTable('broadcast_views', {
 
 export const publicationBroadcasts = pgTable('publication_broadcasts', {
   id: uuid().primaryKey().defaultRandom(),
-  connection: uuid()
-    .notNull()
-    .references(() => accountConnections.id),
+  connection: uuid().references(() => accountConnections.id, {
+    onDelete: 'set null',
+  }),
   publication: bigint({ mode: 'number' }).references(
     () => campaignPublications.id,
     {
       onDelete: 'set null',
     },
   ),
-  broadcastAt: timestamp({ mode: 'date' }).notNull().defaultNow(),
-  slug: varchar({ length: 6 }).notNull().unique(),
+  ack: boolean().notNull().default(false),
+  createdAt: timestamp({ mode: 'date' }).notNull().defaultNow(),
+  sentAt: timestamp({ mode: 'date' }),
 });
 
 export const blobStatus = pgEnum('blob_storage', ['temporary', 'permanent']);
@@ -78,7 +80,7 @@ export const campaigns = pgTable('campaigns', {
     .defaultNow()
     .$onUpdate(() => new Date()),
   categories: bigint({ mode: 'number' }).array().default([]),
-  createdBy: bigint({ mode: 'number' })
+  owner: bigint({ mode: 'number' })
     .notNull()
     .references(() => users.id),
   redirectUrl: varchar({ length: 500 }),
@@ -106,10 +108,10 @@ export const vwCampaignBlobs = pgView('vw_campaign_blobs').as((qb) => {
 export const NewCampaignSchema = createInsertSchema(campaigns)
   .pick({
     title: true,
-    createdBy: true,
+    owner: true,
   })
   .extend({
-    createdBy: z.number().optional(),
+    owner: z.number().optional(),
   });
 
 export const UpdateCampaignSchema = createUpdateSchema(campaigns)
@@ -175,11 +177,15 @@ export const vwCampaignPublications = pgView('vw_campaign_publications').as(
         updatedAt: campaignPublications.updatedAt,
         id: campaignPublications.id,
         createdAt: campaignPublications.createdAt,
+        owner: campaigns.owner,
       })
       .from(campaignPublications)
       .leftJoin(campaigns, (r) => eq(campaigns.id, r.campaign))
       .leftJoin(publicationBroadcasts, (r) =>
-        eq(publicationBroadcasts.publication, r.id),
+        and(
+          eq(publicationBroadcasts.publication, r.id),
+          eq(publicationBroadcasts.ack, true),
+        ),
       )
       .leftJoin(broadcastViews, (r) => eq(broadcastViews.publication, r.id))
       .leftJoin(walletCreditAllocations, (r) =>
@@ -192,7 +198,11 @@ export const vwCampaignPublications = pgView('vw_campaign_publications').as(
           eq(walletTransactions.type, 'reward'),
         ),
       )
-      .groupBy(walletCreditAllocations.id, campaignPublications.id);
+      .groupBy(
+        walletCreditAllocations.id,
+        campaignPublications.id,
+        campaigns.id,
+      );
   },
 );
 
@@ -208,6 +218,13 @@ export const newPublicationSchema = createInsertSchema(campaignPublications)
       .number()
       .min(25)
       .describe('The number of credits to allocate for the publication'),
-    // creditAllocation: z.string().uuid().optional(),
   })
   .refine((data) => data.credits > 0);
+
+export const BroadcastSchema = createSelectSchema(publicationBroadcasts);
+export const CampaignSchema = createSelectSchema(campaigns);
+export const CampaignPublicationSchema =
+  createSelectSchema(campaignPublications);
+export type Campaign = z.infer<typeof CampaignSchema>;
+export type CampaignPublication = z.infer<typeof CampaignPublicationSchema>;
+export type PublicationBroadcast = z.infer<typeof BroadcastSchema>;
