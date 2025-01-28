@@ -1,7 +1,8 @@
-import { walletCreditAllocations } from '@schemas/finance';
-import { eq, sql } from 'drizzle-orm';
+import { walletCreditAllocations, walletTransactions } from '@schemas/finance';
+import { and, count, eq, sql } from 'drizzle-orm';
 import {
   bigint,
+  boolean,
   date,
   interval,
   pgEnum,
@@ -18,7 +19,36 @@ import {
   createUpdateSchema,
 } from 'drizzle-zod';
 import { z } from 'zod';
-import { users } from './users';
+import { accountConnections, users } from './users';
+
+export const broadcastViews = pgTable('broadcast_views', {
+  id: uuid().primaryKey().defaultRandom(),
+  publication: bigint({ mode: 'number' }).references(
+    () => campaignPublications.id,
+    { onDelete: 'set null' },
+  ),
+  broadcast: uuid()
+    .notNull()
+    .references(() => publicationBroadcasts.id, { onDelete: 'cascade' }),
+  viewedAt: timestamp({ mode: 'date' }).notNull().defaultNow(),
+  ip: varchar({ length: 39 }),
+});
+
+export const publicationBroadcasts = pgTable('publication_broadcasts', {
+  id: uuid().primaryKey().defaultRandom(),
+  connection: uuid().references(() => accountConnections.id, {
+    onDelete: 'set null',
+  }),
+  publication: bigint({ mode: 'number' }).references(
+    () => campaignPublications.id,
+    {
+      onDelete: 'set null',
+    },
+  ),
+  ack: boolean().notNull().default(false),
+  createdAt: timestamp({ mode: 'date' }).notNull().defaultNow(),
+  sentAt: timestamp({ mode: 'date' }),
+});
 
 export const blobStatus = pgEnum('blob_storage', ['temporary', 'permanent']);
 export const campaignBlobs = pgTable('campaign_blobs', {
@@ -50,7 +80,7 @@ export const campaigns = pgTable('campaigns', {
     .defaultNow()
     .$onUpdate(() => new Date()),
   categories: bigint({ mode: 'number' }).array().default([]),
-  createdBy: bigint({ mode: 'number' })
+  owner: bigint({ mode: 'number' })
     .notNull()
     .references(() => users.id),
   redirectUrl: varchar({ length: 500 }),
@@ -78,10 +108,10 @@ export const vwCampaignBlobs = pgView('vw_campaign_blobs').as((qb) => {
 export const NewCampaignSchema = createInsertSchema(campaigns)
   .pick({
     title: true,
-    createdBy: true,
+    owner: true,
   })
   .extend({
-    createdBy: z.number().optional(),
+    owner: z.number().optional(),
   });
 
 export const UpdateCampaignSchema = createUpdateSchema(campaigns)
@@ -131,6 +161,51 @@ export const campaignPublications = pgTable('campaign_publications', {
   publishBefore: date({ mode: 'string' }),
 });
 
+export const vwCampaignPublications = pgView('vw_campaign_publications').as(
+  (qb) => {
+    return qb
+      .select({
+        totalBroadcasts: count(publicationBroadcasts.id).as('broadcast_count'),
+        totalClicks: count(broadcastViews.id).as('click_count'),
+        totalExhaustedCredits:
+          sql<number>`COALESCE(SUM(${walletTransactions.value}), 0)`.as(
+            'total_exhausted_credits',
+          ),
+        totalAllocatedCredits: walletCreditAllocations.allocated,
+        creditAllocation: campaignPublications.creditAllocation,
+        campaign: campaignPublications.campaign,
+        updatedAt: campaignPublications.updatedAt,
+        id: campaignPublications.id,
+        createdAt: campaignPublications.createdAt,
+        owner: campaigns.owner,
+      })
+      .from(campaignPublications)
+      .leftJoin(campaigns, (r) => eq(campaigns.id, r.campaign))
+      .leftJoin(publicationBroadcasts, (r) =>
+        and(
+          eq(publicationBroadcasts.publication, r.id),
+          eq(publicationBroadcasts.ack, true),
+        ),
+      )
+      .leftJoin(broadcastViews, (r) => eq(broadcastViews.publication, r.id))
+      .leftJoin(walletCreditAllocations, (r) =>
+        eq(walletCreditAllocations.id, r.creditAllocation),
+      )
+      .leftJoin(walletTransactions, (r) =>
+        and(
+          eq(walletTransactions.creditAllocation, r.creditAllocation),
+          eq(walletTransactions.status, 'complete'),
+          eq(walletTransactions.type, 'reward'),
+        ),
+      )
+      .groupBy(
+        walletCreditAllocations.id,
+        campaignPublications.id,
+        campaigns.id,
+      );
+  },
+);
+
 export const newPublicationSchema = createInsertSchema(campaignPublications)
   .omit({
     createdAt: true,
@@ -143,6 +218,13 @@ export const newPublicationSchema = createInsertSchema(campaignPublications)
       .number()
       .min(25)
       .describe('The number of credits to allocate for the publication'),
-    // creditAllocation: z.string().uuid().optional(),
   })
   .refine((data) => data.credits > 0);
+
+export const BroadcastSchema = createSelectSchema(publicationBroadcasts);
+export const CampaignSchema = createSelectSchema(campaigns);
+export const CampaignPublicationSchema =
+  createSelectSchema(campaignPublications);
+export type Campaign = z.infer<typeof CampaignSchema>;
+export type CampaignPublication = z.infer<typeof CampaignPublicationSchema>;
+export type PublicationBroadcast = z.infer<typeof BroadcastSchema>;

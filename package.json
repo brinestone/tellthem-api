@@ -22,6 +22,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "drop": "pnpm drizzle-kit drop",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db.seed": "pnpm tsx scripts/seed.ts",
     "tunnel": "pnpm tsx scripts/tunnel/index.ts"
@@ -36,6 +37,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.0.2",
     "@scalar/nestjs-api-reference": "^0.3.177",
+    "axios": "^1.7.9",
     "drizzle-orm": "^0.38.4",
     "drizzle-zod": "^0.6.1",
     "google-libphonenumber": "^3.2.40",

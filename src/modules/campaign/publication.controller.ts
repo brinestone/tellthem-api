@@ -4,17 +4,13 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Param,
   ParseIntPipe,
   Post,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  ApiBasicAuth,
-  ApiBody,
-  ApiParam,
-  ApiResponse
-} from '@nestjs/swagger';
+import { ApiBasicAuth, ApiBody, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { newPublicationSchema } from '@schemas/campaigns';
 import { UserInfo } from '@schemas/users';
 import { zodToOpenAPI, ZodValidationPipe } from 'nestjs-zod';
@@ -26,6 +22,7 @@ import { CampaignService } from './services/campaign.service';
 
 @Controller('campaign/publications')
 export class PublicationController {
+  private logger = new Logger(PublicationController.name);
   constructor(
     private campaignService: CampaignService,
     private eventEmitter: EventEmitter2,
@@ -51,10 +48,12 @@ export class PublicationController {
       campaign,
       input,
     );
-    void this.eventEmitter.emitAsync(
-      NEW_PUBLICATION,
-      new CampaignPublishedEvent(campaign, publicationId),
-    );
+    this.eventEmitter
+      .emitAsync(
+        NEW_PUBLICATION,
+        new CampaignPublishedEvent(campaign, publicationId, id),
+      )
+      .catch((e: Error) => this.logger.error(e.message, e.stack));
   }
 
   @Get(':campaign')

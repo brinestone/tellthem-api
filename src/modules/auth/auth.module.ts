@@ -16,6 +16,7 @@ import { UserService } from './services';
 import { ConnectionController } from './controllers/auth/connection.controller';
 import { ConnectionService } from './services/connection.service';
 import { WebhookModule } from '@modules/webhook';
+import { CampaignModule } from '@modules/campaign';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { WebhookModule } from '@modules/webhook';
     ConfigModule.forFeature(jwtConfig),
     ConfigModule.forFeature(refreshConfig),
     WebhookModule,
+    CampaignModule,
   ],
   providers: [
     AuthService,
