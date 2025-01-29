@@ -1,23 +1,67 @@
-import { User } from '@modules/auth/decorators';
-import { GoogleGuard } from '@modules/auth/guards';
-import { RefreshGuard } from '@modules/auth/guards/refresh.guard';
-import { AuthService } from '@modules/auth/services/auth.service';
-import { Controller, Get, Ip, Req, Res, UseGuards } from '@nestjs/common';
+import { USER_DELETE_REQUESTED, USER_DELETED } from '@events/user';
+import { Public, User } from '@modules/auth/decorators';
+import {
+  AccountDeletionRequestedEvent,
+  UserDeletedEvent,
+} from '@modules/auth/events';
+import { GoogleGuard, RefreshGuard, RevokeGuard } from '@modules/auth/guards';
+import { AuthService } from '@modules/auth/services';
+import {
+  Controller,
+  Delete,
+  Get,
+  Ip,
+  Logger,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ApiBearerAuth, ApiOAuth2 } from '@nestjs/swagger';
 import { UserInfo } from '@schemas/users';
 import { Request, Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
+  private logger = new Logger(AuthController.name);
   constructor(
     private authService: AuthService,
     private configService: ConfigService,
+    private eventEmitter: EventEmitter2,
   ) {}
+
+  @Delete()
+  async removeUserAccount(@User() { id }: UserInfo) {
+    await this.eventEmitter.emitAsync(
+      USER_DELETE_REQUESTED,
+      new AccountDeletionRequestedEvent(id),
+    );
+    const result = await this.authService.removeUser(id);
+    if (result) {
+      void this.eventEmitter.emitAsync(USER_DELETED, new UserDeletedEvent(id));
+      return;
+    }
+    this.logger.warn('Unexpeted result from user account deletion');
+  }
+
+  @Get('revoke-token')
+  @Public()
+  @ApiBearerAuth()
+  @UseGuards(RevokeGuard)
+  async handleTokenRevoke(@Req() req: Request, @User() { id }: UserInfo) {
+    const { access, refresh } = req['tokens'];
+    return await this.authService.revokeTokenPair(access, refresh, id);
+  }
+
+  @Public()
   @Get('google')
+  @ApiOAuth2(['profile,email'], 'google')
   @UseGuards(GoogleGuard)
   handleGoogleSignIn() {}
 
   @Get('google/callback')
+  @Public()
   @UseGuards(GoogleGuard)
   async completeGoogleSignIn(
     @Ip() ip: string,
@@ -42,6 +86,7 @@ export class AuthController {
   }
 
   @Get('refresh')
+  @Public()
   @UseGuards(RefreshGuard)
   async handleAccessTokenRefresh(
     @Req() request: Request,

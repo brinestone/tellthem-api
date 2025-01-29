@@ -1,4 +1,4 @@
-import { and, eq, or, sql, sum } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -71,7 +71,7 @@ export const walletTransactionType = pgEnum('wallet_transaction_type', [
 ]);
 export const walletTransactions = pgTable('wallet_transactions', {
   id: uuid().primaryKey().defaultRandom(),
-  value: bigint({ mode: 'number' }).notNull(),
+  value: bigint({ mode: 'number' }),
   from: uuid().references(() => wallets.id),
   to: uuid()
     .notNull()
@@ -82,8 +82,8 @@ export const walletTransactions = pgTable('wallet_transactions', {
   status: transactionStatus().default('pending'),
   type: walletTransactionType().notNull(),
   notes: text(),
-  accountTransaction: uuid().references(() => paymentTransactions.id),
-  creditAllocation: uuid().references(() => walletCreditAllocations.id),
+  // accountTransaction: uuid().references(() => paymentTransactions.id),
+  creditAllocation: uuid().references(() => walletCreditAllocations.id), // indicates that this transaction exhausts the allocation's value
 });
 
 export const creditAllocationStatus = pgEnum('credit_allocation_status', [
@@ -117,6 +117,7 @@ export const paymentTransactions = pgTable('payment_transactions', {
   currency: varchar({ length: 10 }).notNull(),
   params: jsonb(),
   inbound: boolean().notNull(),
+  walletTransaction: uuid().references(() => walletTransactions.id),
 });
 
 export const fundingBalances = pgView('vw_funding_balances').as((qb) => {

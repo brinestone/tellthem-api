@@ -6,13 +6,15 @@ import {
   accessTokens,
   federatedCredentials,
   refreshTokens,
+  UserInfo,
   userPrefs,
   users,
   vwRefreshTokens,
 } from '@schemas/users';
-import { and, eq, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { LRUCache } from 'lru-cache';
 import { randomBytes } from 'node:crypto';
-import { UserClaims } from '../types';
+import { UserClaimsDto } from '../dto';
 
 export type UserInput = {
   email: string;
@@ -23,16 +25,31 @@ export type UserInput = {
 
 @Injectable()
 export class AuthService {
-  private logger = new Logger(AuthService.name);
-  constructor(
-    @Inject(DRIZZLE) private db: DrizzleDb,
-    private configService: ConfigService,
-    private jwtService: JwtService,
-  ) {}
+  async removeUser(id: number) {
+    await this.db.delete(users).where(eq(users.id, id));
+    return this.userCache.delete(id);
+  }
+
+  async revokeTokenPair(
+    accessTokenId: string,
+    refreshTokenId: string,
+    user: number,
+  ) {
+    await this.db.transaction(async (t) => {
+      await t
+        .update(accessTokens)
+        .set({ revoked_at: new Date() })
+        .where(eq(accessTokens.id, accessTokenId));
+      await t
+        .update(refreshTokens)
+        .set({ revoked_by: user })
+        .where(eq(refreshTokens.id, refreshTokenId));
+    });
+  }
 
   async generateTokenPair(
     ip: string,
-    claims: UserClaims,
+    claims: UserClaimsDto,
     existingTokenPair?: { access: string; refresh: string },
   ) {
     this.logger.log('generating token pair');
@@ -102,29 +119,22 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async findExistingRefreshToken(ipAddress: string, id: string, value: string) {
+  async findExistingRefreshToken(ipAddress: string, id: string) {
     const ans = await this.db
-      .select()
+      .select({
+        access_token: vwRefreshTokens.access_token,
+        user: vwRefreshTokens.user,
+      })
       .from(vwRefreshTokens)
-      .innerJoin(accessTokens, (r) => eq(accessTokens.id, r.access_token))
-      .where(
-        and(
-          eq(vwRefreshTokens.id, id),
-          eq(vwRefreshTokens.isExpired, false),
-          eq(vwRefreshTokens.token, value),
-          isNull(vwRefreshTokens.replaced_by),
-          isNull(vwRefreshTokens.revoked_by),
-          eq(vwRefreshTokens.ip, ipAddress),
-        ),
-      )
+      .innerJoin(accessTokens, (r) => eq(r.access_token, accessTokens.id))
+      .where(eq(vwRefreshTokens.id, id))
       .limit(1);
     return ans[0];
   }
 
   async findUserById(id: number) {
-    return await this.db.query.users.findFirst({
-      where: (user, { eq }) => eq(user.id, id),
-    });
+    if (this.userCache.has(id)) return this.userCache.get(id);
+    return await this.userCache.fetch(id);
   }
 
   async updateCredentialAccessToken(
@@ -198,4 +208,27 @@ export class AuthService {
       where: (user, { eq }) => eq(user.credentials, credential),
     });
   }
+
+  private userCache = new LRUCache<number, UserInfo>({
+    size: 100,
+    maxSize: 1500,
+    sizeCalculation: (value) => {
+      return Object.entries(value)
+        .map(([k, v]) => String(k).length + String(v).length)
+        .reduce((acc, curr) => acc + curr, 0);
+    },
+    ttl: 2 * 3600 * 1000,
+    fetchMethod: async (key) => {
+      this.logger.verbose('updating user cache');
+      return await this.db.query.users.findFirst({
+        where: (user, { eq }) => eq(user.id, key),
+      });
+    },
+  });
+  private logger = new Logger(AuthService.name);
+  constructor(
+    @Inject(DRIZZLE) private db: DrizzleDb,
+    private configService: ConfigService,
+    private jwtService: JwtService,
+  ) {}
 }

@@ -100,31 +100,31 @@ export const verificationCodes = pgTable('verification_codes', {
   id: uuid().primaryKey().defaultRandom(),
   created_at: timestamp({ mode: 'date' }).notNull().defaultNow(),
   window: interval().notNull(),
-  hash: varchar({ length: 32 }).notNull().unique(),
+  code: varchar({ length: 6 }).notNull().unique(),
   confirmed_at: timestamp({ mode: 'date' }),
   data: jsonb(),
+  key: varchar(),
 });
 
-export const verificationCodesView = pgView('vw_verification_codes').as(
-  (qb) => {
-    return qb
-      .select({
-        code: verificationCodes.hash,
-        createdAt: verificationCodes.created_at,
-        expiresAt: sql<Date>`
+export const vwVerificationCodes = pgView('vw_verification_codes').as((qb) => {
+  return qb
+    .select({
+      code: verificationCodes.code,
+      createdAt: verificationCodes.created_at,
+      expiresAt: sql<Date>`
       (${verificationCodes.created_at} + ${verificationCodes.window})::TIMESTAMP
     `.as('expires_at'),
-        isExpired: sql<boolean>`
+      isExpired: sql<boolean>`
       (CASE
         WHEN ${verificationCodes.confirmed_at} IS NOT NULL THEN true
         ELSE NOW() > (${verificationCodes.created_at} + ${verificationCodes.window})
       END)::BOOlEAN
     `.as('is_expired'),
-        data: verificationCodes.data,
-      })
-      .from(verificationCodes);
-  },
-);
+      data: verificationCodes.data,
+      key: verificationCodes.key,
+    })
+    .from(verificationCodes);
+});
 
 export const accountConnectionProviders = pgEnum(
   'account_connection_providers',
@@ -195,11 +195,22 @@ export const userPrefs = pgTable('user_prefs', {
   language: varchar({ length: 2 }).notNull(),
 });
 
-export const updatePrefSchema = createUpdateSchema(userPrefs).pick({
-  country: true,
-  theme: true,
-  currency: true,
-  language: true,
-});
+export const updatePrefSchema = createUpdateSchema(userPrefs)
+  .pick({
+    country: true,
+    theme: true,
+    currency: true,
+    language: true,
+  })
+  .describe("Data for updating a user's preferences");
 
+export const UserPrefsSchema = createSelectSchema(userPrefs).omit({
+  user: true,
+  createdAt: true,
+  updatedAt: true,
+  id: true,
+});
 export const UserSchema = createSelectSchema(users);
+
+export const AccountConnectionSchema = createSelectSchema(accountConnections);
+export type AccountConnection = z.infer<typeof AccountConnectionSchema>;

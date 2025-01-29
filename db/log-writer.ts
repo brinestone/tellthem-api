@@ -5,6 +5,6 @@ export class DefaultWriter implements LogWriter {
   private logger = new Logger('drizzle');
 
   write(message: string) {
-    this.logger.verbose(message);
+    this.logger.debug(message);
   }
 }

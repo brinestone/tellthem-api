@@ -8,8 +8,8 @@ export class LoggerMiddleware implements NestMiddleware {
     const start = Date.now();
     res.on('finish', () => {
       const now = Date.now();
-      const diff = (now - start) / 1000;
-      const message = `${req.ip} ${req.method} ${req.originalUrl} -> ${res.statusCode} | +${diff}s`;
+      const diff = now - start;
+      const message = `${req.ip} ${req.method} ${req.originalUrl} -> ${res.statusCode} | +${diff}ms`;
       if (res.statusCode < 400) {
         this.logger.verbose(message);
       } else if (res.statusCode >= 400 && res.statusCode < 500) {
