@@ -37,4 +37,4 @@ ENV PXL_API_KEY=
 EXPOSE ${PORT}
 
 # Update ENTRYPOINT to run the NestJS app with Node.js directly
-CMD ["node", "/server/dist/main.js"]
+CMD ["node", "/server/dist/src/main.js"]
