@@ -63,7 +63,7 @@ jobs:
       - name: Build ⚙️
         run: pnpm build
       - name: Docker login
-        run: echo ${{ env.DOCKER_TOKEN }} | docker login -u ${{ env.DOCKER_USERNAME }}
+        run: echo ${{ env.DOCKER_TOKEN }} | docker login -u ${{ env.DOCKER_USERNAME }} --password-stdin
       - name: Docker Push Staging ⬆️
         if: github.ref_name == 'next' && github.ref_type == 'branch'
         env:
