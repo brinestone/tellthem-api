@@ -55,7 +55,7 @@ jobs:
         id: docker-build
         run: |
           docker build . -t ${{ env.DOCKER_USERNAME }}/tellthem-api:prelude
-          echo "image-name=\"${{ env.DOCKER_USERNAME }}/tellthem-api:prelude\"\n" >> $GITHUB_OUTPUT
+          echo "image-name=${{ env.DOCKER_USERNAME }}/tellthem-api:prelude\n" >> $GITHUB_OUTPUT
       - name: Docker Push ⬆️
         run: |
           docker login -u ${{ env.DOCKER_USERNAME }} -p ${{ env.DOCKER_TOKEN }}
