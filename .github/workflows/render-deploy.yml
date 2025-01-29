@@ -40,6 +40,8 @@ jobs:
         run: pnpm i
       - name: Migrate Database Schema
         run: pnpm migrate.prod
+      - name: Seed Database
+        run: pnpm db.seed
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build Image
