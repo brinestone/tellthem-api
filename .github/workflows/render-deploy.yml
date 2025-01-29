@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - next
+      - f/*
     tags:
       - v*
 
