@@ -52,11 +52,9 @@ jobs:
       - name: Build ⚙️
         run: pnpm build
       - name: Build Docker Image ⚙️
-        id: docker-build
         run: |
           docker build . -t ${{ env.DOCKER_USERNAME }}/tellthem-api:prelude
-          echo "image-name=${{ env.DOCKER_USERNAME }}/tellthem-api:prelude\n" >> $GITHUB_OUTPUT
       - name: Docker Push ⬆️
         run: |
           docker login -u ${{ env.DOCKER_USERNAME }} -p ${{ env.DOCKER_TOKEN }}
-          docker push ${{ steps.docker-build.outputs.image-name }}
+          docker push ${{ env.DOCKER_USERNAME }}/tellthem-api:prelude
