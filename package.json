@@ -28,7 +28,8 @@
     "drop": "pnpm drizzle-kit drop",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db.seed": "pnpm tsx scripts/seed.ts",
-    "tunnel": "pnpm tsx scripts/tunnel/index.ts"
+    "tunnel": "pnpm tsx scripts/tunnel/index.ts",
+    "release": "standard-version"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
