@@ -1,1 +1,0 @@
-ALTER TABLE "publication_broadcasts" RENAME COLUMN "broadcastAt" TO "createdAt";

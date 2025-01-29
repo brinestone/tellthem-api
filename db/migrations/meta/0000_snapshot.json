@@ -1,9 +1,161 @@
 {
-  "id": "966723f1-b0c3-406c-b2b9-498942dd6a70",
+  "id": "111231bd-b00f-47af-86f9-5d7fdf86dcb8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.broadcast_views": {
+      "name": "broadcast_views",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "publication": {
+          "name": "publication",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "broadcast": {
+          "name": "broadcast",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "viewedAt": {
+          "name": "viewedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ip": {
+          "name": "ip",
+          "type": "varchar(39)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "broadcast_views_publication_campaign_publications_id_fk": {
+          "name": "broadcast_views_publication_campaign_publications_id_fk",
+          "tableFrom": "broadcast_views",
+          "tableTo": "campaign_publications",
+          "columnsFrom": [
+            "publication"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "broadcast_views_broadcast_publication_broadcasts_id_fk": {
+          "name": "broadcast_views_broadcast_publication_broadcasts_id_fk",
+          "tableFrom": "broadcast_views",
+          "tableTo": "publication_broadcasts",
+          "columnsFrom": [
+            "broadcast"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.campaign_blobs": {
+      "name": "campaign_blobs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(32)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "storage": {
+          "name": "storage",
+          "type": "blob_storage",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'temporary'"
+        },
+        "path": {
+          "name": "path",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "campaign": {
+          "name": "campaign",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uploadedAt": {
+          "name": "uploadedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "size": {
+          "name": "size",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "tempWindow": {
+          "name": "tempWindow",
+          "type": "interval",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'24h'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "campaign_blobs_campaign_campaigns_id_fk": {
+          "name": "campaign_blobs_campaign_campaigns_id_fk",
+          "tableFrom": "campaign_blobs",
+          "tableTo": "campaigns",
+          "columnsFrom": [
+            "campaign"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.campaign_publications": {
       "name": "campaign_publications",
       "schema": "",
@@ -182,8 +334,8 @@
           "notNull": false,
           "default": "'{}'"
         },
-        "createdBy": {
-          "name": "createdBy",
+        "owner": {
+          "name": "owner",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
@@ -197,17 +349,96 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "campaigns_createdBy_users_id_fk": {
-          "name": "campaigns_createdBy_users_id_fk",
+        "campaigns_owner_users_id_fk": {
+          "name": "campaigns_owner_users_id_fk",
           "tableFrom": "campaigns",
           "tableTo": "users",
           "columnsFrom": [
-            "createdBy"
+            "owner"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.publication_broadcasts": {
+      "name": "publication_broadcasts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "connection": {
+          "name": "connection",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "publication": {
+          "name": "publication",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ack": {
+          "name": "ack",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "sentAt": {
+          "name": "sentAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "publication_broadcasts_connection_account_connections_id_fk": {
+          "name": "publication_broadcasts_connection_account_connections_id_fk",
+          "tableFrom": "publication_broadcasts",
+          "tableTo": "account_connections",
+          "columnsFrom": [
+            "connection"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "publication_broadcasts_publication_campaign_publications_id_fk": {
+          "name": "publication_broadcasts_publication_campaign_publications_id_fk",
+          "tableFrom": "publication_broadcasts",
+          "tableTo": "campaign_publications",
+          "columnsFrom": [
+            "publication"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -453,10 +684,30 @@
           "type": "boolean",
           "primaryKey": false,
           "notNull": true
+        },
+        "walletTransaction": {
+          "name": "walletTransaction",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "payment_transactions_walletTransaction_wallet_transactions_id_fk": {
+          "name": "payment_transactions_walletTransaction_wallet_transactions_id_fk",
+          "tableFrom": "payment_transactions",
+          "tableTo": "wallet_transactions",
+          "columnsFrom": [
+            "walletTransaction"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -546,7 +797,7 @@
           "name": "value",
           "type": "bigint",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "from": {
           "name": "from",
@@ -600,12 +851,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "accountTransaction": {
-          "name": "accountTransaction",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "creditAllocation": {
           "name": "creditAllocation",
           "type": "uuid",
@@ -634,19 +879,6 @@
           "tableTo": "wallets",
           "columnsFrom": [
             "to"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "wallet_transactions_accountTransaction_payment_transactions_id_fk": {
-          "name": "wallet_transactions_accountTransaction_payment_transactions_id_fk",
-          "tableFrom": "wallet_transactions",
-          "tableTo": "payment_transactions",
-          "columnsFrom": [
-            "accountTransaction"
           ],
           "columnsTo": [
             "id"
@@ -919,6 +1151,12 @@
         "lastAccessToken": {
           "name": "lastAccessToken",
           "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refreshToken": {
+          "name": "refreshToken",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -1230,12 +1468,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "dob": {
-          "name": "dob",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
         "phone": {
           "name": "phone",
           "type": "varchar(255)",
@@ -1295,9 +1527,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "hash": {
-          "name": "hash",
-          "type": "varchar(32)",
+        "code": {
+          "name": "code",
+          "type": "varchar(6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -1312,17 +1544,23 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
+        },
+        "key": {
+          "name": "key",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "verification_codes_hash_unique": {
-          "name": "verification_codes_hash_unique",
+        "verification_codes_code_unique": {
+          "name": "verification_codes_code_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "hash"
+            "code"
           ]
         }
       },
@@ -1332,6 +1570,14 @@
     }
   },
   "enums": {
+    "public.blob_storage": {
+      "name": "blob_storage",
+      "schema": "public",
+      "values": [
+        "temporary",
+        "permanent"
+      ]
+    },
     "public.credit_allocation_status": {
       "name": "credit_allocation_status",
       "schema": "public",
@@ -1407,6 +1653,150 @@
   "roles": {},
   "policies": {},
   "views": {
+    "public.vw_campaign_blobs": {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(32)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "campaign": {
+          "name": "campaign",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "storage": {
+          "name": "storage",
+          "type": "blob_storage",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'temporary'"
+        },
+        "uploadedAt": {
+          "name": "uploadedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "path": {
+          "name": "path",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size": {
+          "name": "size",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "select \"campaign_blobs\".\"id\", \"campaign_blobs\".\"campaign\", \"campaign_blobs\".\"storage\", \"campaign_blobs\".\"uploadedAt\", \"campaign_blobs\".\"path\", \"campaign_blobs\".\"size\", CASE\n                              WHEN \"campaign_blobs\".\"storage\" = 'permanent' THEN (\"campaign_blobs\".\"campaign\" IS NULL)\n                              WHEN \"campaign_blobs\".\"storage\" = 'temporary' THEN (NOW() > (\"campaign_blobs\".\"updatedAt\" + \"campaign_blobs\".\"tempWindow\"))\n                              ELSE true\n                            END as \"is_stale\" from \"campaign_blobs\" left join \"campaigns\" on \"campaigns\".\"id\" = \"campaign_blobs\".\"campaign\"",
+      "name": "vw_campaign_blobs",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    },
+    "public.vw_campaign_publications": {
+      "columns": {
+        "allocated": {
+          "name": "allocated",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creditAllocation": {
+          "name": "creditAllocation",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "campaign": {
+          "name": "campaign",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "vw_campaign_publications_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "owner": {
+          "name": "owner",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "select count(\"publication_broadcasts\".\"id\") as \"broadcast_count\", count(\"broadcast_views\".\"id\") as \"click_count\", COALESCE(SUM(\"wallet_transactions\".\"value\"), 0) as \"total_exhausted_credits\", \"credit_allocations\".\"allocated\", \"campaign_publications\".\"creditAllocation\", \"campaign_publications\".\"campaign\", \"campaign_publications\".\"updatedAt\", \"campaign_publications\".\"id\", \"campaign_publications\".\"createdAt\", \"campaigns\".\"owner\" from \"campaign_publications\" left join \"campaigns\" on \"campaigns\".\"id\" = \"campaign_publications\".\"campaign\" left join \"publication_broadcasts\" on (\"publication_broadcasts\".\"publication\" = \"campaign_publications\".\"id\" and \"publication_broadcasts\".\"ack\" = true) left join \"broadcast_views\" on \"broadcast_views\".\"publication\" = \"campaign_publications\".\"id\" left join \"credit_allocations\" on \"credit_allocations\".\"id\" = \"campaign_publications\".\"creditAllocation\" left join \"wallet_transactions\" on (\"wallet_transactions\".\"creditAllocation\" = \"campaign_publications\".\"creditAllocation\" and \"wallet_transactions\".\"status\" = 'complete' and \"wallet_transactions\".\"type\" = 'reward') group by \"credit_allocations\".\"id\", \"campaign_publications\".\"id\", \"campaigns\".\"id\"",
+      "name": "vw_campaign_publications",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    },
+    "public.vw_categories": {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "vw_categories_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "select \"categories\".\"id\", \"categories\".\"title\", COUNT(\"campaign_publications\".\"id\") as \"publication_count\" from \"categories\" left join \"campaigns\" on \"categories\".\"id\" = ANY(\"campaigns\".\"categories\") left join \"campaign_publications\" on \"campaign_publications\".\"campaign\" = \"campaigns\".\"id\" AND (\"campaign_publications\".\"publishBefore\" > NOW() OR \"campaign_publications\".\"publishBefore\" IS NULL) group by \"categories\".\"id\"",
+      "name": "vw_categories",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    },
     "public.vw_funding_balances": {
       "columns": {
         "id": {
@@ -1475,34 +1865,6 @@
       },
       "definition": "select \"credit_allocations\".\"id\", \"credit_allocations\".\"wallet\", \"credit_allocations\".\"allocated\", \n        SUM(\n          CASE\n            WHEN (\"wallet_transactions\".\"type\" = 'reward' and \"wallet_transactions\".\"from\" = \"credit_allocations\".\"wallet\") THEN \"wallet_transactions\".\"value\"\n            ELSE 0\n          END\n        )\n       as \"exhausted\" from \"credit_allocations\" left join \"wallet_transactions\" on (\"credit_allocations\".\"id\" = \"wallet_transactions\".\"creditAllocation\" and \"wallet_transactions\".\"type\" = 'reward' and \"wallet_transactions\".\"from\" = \"credit_allocations\".\"wallet\") group by \"credit_allocations\".\"id\"",
       "name": "vw_credit_allocations",
-      "schema": "public",
-      "isExisting": false,
-      "materialized": false
-    },
-    "public.vw_verification_codes": {
-      "columns": {
-        "hash": {
-          "name": "hash",
-          "type": "varchar(32)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "data": {
-          "name": "data",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "definition": "select \"hash\", \"created_at\", \n      (\"created_at\" + \"window\")::TIMESTAMP\n     as \"expires_at\", \n      (CASE\n        WHEN \"confirmed_at\" IS NOT NULL THEN true\n        ELSE NOW() > (\"created_at\" + \"window\")\n      END)::BOOlEAN\n     as \"is_expired\", \"data\" from \"verification_codes\"",
-      "name": "vw_verification_codes",
       "schema": "public",
       "isExisting": false,
       "materialized": false
@@ -1597,6 +1959,40 @@
       },
       "definition": "select (now()::TIMESTAMP > (\"created_at\" + \"window\")::TIMESTAMP)::BOOLEAN OR \"revoked_by\" IS NOT NULL as \"is_expired\", (\"created_at\" + \"window\")::TIMESTAMP as \"expires\", \"revoked_by\", \"replaced_by\", \"created_at\", \"access_token\", \"ip\", \"user\", \"token\", \"id\" from \"refresh_tokens\"",
       "name": "vw_refresh_tokens",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    },
+    "public.vw_verification_codes": {
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "varchar(6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "key": {
+          "name": "key",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "select \"code\", \"created_at\", \n      (\"created_at\" + \"window\")::TIMESTAMP\n     as \"expires_at\", \n      (CASE\n        WHEN \"confirmed_at\" IS NOT NULL THEN true\n        ELSE NOW() > (\"created_at\" + \"window\")\n      END)::BOOlEAN\n     as \"is_expired\", \"data\", \"key\" from \"verification_codes\"",
+      "name": "vw_verification_codes",
       "schema": "public",
       "isExisting": false,
       "materialized": false

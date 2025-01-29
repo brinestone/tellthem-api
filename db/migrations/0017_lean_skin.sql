@@ -1,1 +1,0 @@
-ALTER TABLE "publication_broadcasts" ADD COLUMN "sentAt" timestamp;

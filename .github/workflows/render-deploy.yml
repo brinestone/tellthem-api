@@ -81,3 +81,6 @@ jobs:
           docker push ${{ env.DOCKER_USERNAME }}/tellthem-api:latest
           docker push ${{ env.DOCKER_USERNAME}}/tellthem-api:${{ github.ref_name }}
           curl "${{ env.DEPLOY_URL }}"
+      - name: Remove docker password
+        run: |
+          rm /home/runner/.docker/config.json
