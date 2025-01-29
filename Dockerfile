@@ -1,4 +1,5 @@
 FROM node:22-alpine AS base
+RUN npm install -g pnpm
 RUN apk add --no-cache ca-certificates tzdata
 
 FROM base AS stage
