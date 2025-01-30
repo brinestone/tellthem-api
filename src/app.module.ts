@@ -14,7 +14,7 @@ import { LoggerMiddleware } from './middleware/logger.middleware';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({ expandVariables: true }),
     EventEmitterModule.forRoot(),
     AuthModule,
     EventEmitterModule.forRoot(),
