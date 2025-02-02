@@ -8,7 +8,7 @@ export const UserClaimsSchema = z.object({
   name: z.string(),
   image: z.string().nullable().optional(),
   tokenId: z.string().uuid().optional(),
-  aud: z.string(),
+  aud: z.string().optional(),
 });
 
 export const TelegramCodeVerificationSchema = z.object({

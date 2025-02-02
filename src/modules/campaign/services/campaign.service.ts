@@ -6,6 +6,7 @@ import {
   PreconditionFailedException,
 } from '@nestjs/common';
 import {
+  broadcastViews,
   CampaignLookupSchema,
   campaignPublications,
   campaigns,
@@ -16,7 +17,7 @@ import {
   vwCreditAllocations,
   walletCreditAllocations,
 } from '@schemas/finance';
-import { and, count, desc, eq, gte, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { NewCampaignDto, UpdateCampaignDto } from '../dto/campaign.dto';
 import { NewPublicationDto } from '../dto/publication.dto';
@@ -24,6 +25,43 @@ import { NewPublicationDto } from '../dto/publication.dto';
 @Injectable()
 export class CampaignService {
   constructor(@Inject(DRIZZLE) private db: DrizzleDb) {}
+
+  async upsertBroadcastView(
+    broadcast: string,
+    ip: string,
+    deviceHash: string,
+    userAgent: string,
+    user?: number,
+  ) {
+    const res = await this.db.transaction((t) => {
+      return t
+        .insert(broadcastViews)
+        .values({
+          broadcast,
+          ip,
+          deviceHash,
+          userAgent,
+          user,
+        })
+        .onConflictDoUpdate({
+          target: [
+            broadcastViews.deviceHash,
+            broadcastViews.broadcast,
+            broadcastViews.ip,
+          ],
+          set: {
+            clickCount: sql`${broadcastViews.clickCount} + 1`,
+            viewedAt: new Date(),
+          },
+        })
+        .returning({
+          id: broadcastViews.id,
+          clicks: broadcastViews.clickCount,
+        });
+    });
+
+    return res[0];
+  }
 
   async markBroadcastsAsSent(broadcasts: string[]) {
     const now = new Date(new Date().toUTCString());
@@ -66,7 +104,7 @@ export class CampaignService {
         .from(fundingBalances)
         .where(
           and(
-            eq(fundingBalances.ownerId, owner),
+            eq(fundingBalances.owner, owner),
             gte(fundingBalances.balance, input.credits),
           ),
         )

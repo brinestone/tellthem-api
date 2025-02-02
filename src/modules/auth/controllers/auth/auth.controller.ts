@@ -70,7 +70,7 @@ export class AuthController {
   ) {
     const { accessToken, refreshToken } =
       await this.authService.generateTokenPair(ip, {
-        aud: this.configService.getOrThrow<string>('VALID_AUDIENCE'),
+        // aud: this.configService.getOrThrow<string>('VALID_AUDIENCE'),
         email: user.email,
         name: user.names,
         sub: user.id,
@@ -79,8 +79,8 @@ export class AuthController {
 
     res.redirect(
       new URL(
-        `/auth/oauth2/callback?access=${accessToken}&refresh=${refreshToken}`,
-        this.configService.getOrThrow<string>('VALID_AUDIENCE'),
+        `/auth/oauth2/callback?access=${accessToken}&refresh=${refreshToken}`, 
+        this.configService.getOrThrow<string>('FRONT_END_ORIGIN'),
       ).toString(),
     );
   }

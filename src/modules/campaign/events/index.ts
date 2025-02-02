@@ -13,3 +13,11 @@ export class CampaignPublishedEvent extends BaseCampaignEvent {
     super(campaign);
   }
 }
+
+export class CampaignViewedEvent {
+  constructor(
+    readonly broadcast: string,
+    readonly campaign?: number,
+    readonly user?: number,
+  ) {}
+}

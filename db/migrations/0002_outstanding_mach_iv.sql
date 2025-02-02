@@ -1,0 +1,2 @@
+ALTER TABLE "broadcast_views" ADD COLUMN "user" bigint;--> statement-breakpoint
+ALTER TABLE "broadcast_views" ADD CONSTRAINT "broadcast_views_user_users_id_fk" FOREIGN KEY ("user") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;

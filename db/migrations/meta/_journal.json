@@ -8,6 +8,76 @@
       "when": 1738153500504,
       "tag": "0000_loose_pestilence",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1738324139519,
+      "tag": "0001_aromatic_absorbing_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1738444041789,
+      "tag": "0002_outstanding_mach_iv",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1738444550007,
+      "tag": "0003_bored_the_call",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1738445487225,
+      "tag": "0004_greedy_domino",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1738485619287,
+      "tag": "0005_sticky_kingpin",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1738493609584,
+      "tag": "0006_magenta_magma",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1738505667723,
+      "tag": "0007_nappy_annihilus",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1738505872164,
+      "tag": "0008_uneven_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1738505951508,
+      "tag": "0009_huge_phantom_reporter",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1738506259239,
+      "tag": "0010_ambitious_whizzer",
+      "breakpoints": true
     }
   ]
 }

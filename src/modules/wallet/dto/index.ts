@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 export const WalletBalanceSchema = z.object({
   balance: z.union([z.string(), z.number()]).pipe(z.coerce.number()),
-  ownerId: z.number(),
+  owner: z.number(),
   id: z.string(),
 });
 
@@ -42,7 +42,7 @@ export const WalletTransferSchema = z.object({
   from: z.string().uuid().nullable(),
   to: z.string().uuid(),
   amount: z.number().nullable(),
-  status: z.enum(['pending', 'cancelled', 'complete']),
+  status: z.enum(['pending', 'cancelled', 'complete', 'failed']),
   type: z.enum(['funding', 'reward', 'withdrawal']),
   date: z.date(),
   payment: z
@@ -50,7 +50,7 @@ export const WalletTransferSchema = z.object({
       id: z.string().uuid(),
       currency: z.string(),
       amount: z.number(),
-      status: z.enum(['pending', 'cancelled', 'complete']),
+      status: z.enum(['pending', 'cancelled', 'complete', 'failed']),
     })
     .nullable(),
 });

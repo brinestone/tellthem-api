@@ -1,0 +1,2 @@
+DROP INDEX "broadcast_views_broadcast_deviceHash_index";--> statement-breakpoint
+CREATE UNIQUE INDEX "broadcast_views_broadcast_deviceHash_ip_index" ON "broadcast_views" USING btree ("broadcast","deviceHash","ip");

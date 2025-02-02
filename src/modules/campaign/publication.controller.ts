@@ -1,4 +1,4 @@
-import { NEW_PUBLICATION } from '@events/campaign';
+import { CAMPAIGN_VIEWED, NEW_PUBLICATION } from '@events/campaign';
 import { User } from '@modules/auth/decorators';
 import {
   Body,
@@ -9,16 +9,22 @@ import {
   ParseIntPipe,
   Post,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { ApiBasicAuth, ApiBody, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { newPublicationSchema } from '@schemas/campaigns';
 import { UserInfo } from '@schemas/users';
 import { zodToOpenAPI, ZodValidationPipe } from 'nestjs-zod';
 import { z } from 'zod';
 import { CampaignPublicationSchema } from './dto/campaign.dto';
-import { NewPublicationDto } from './dto/publication.dto';
-import { CampaignPublishedEvent } from './events';
+import {
+  BroadcastViewUpsertSchema,
+  NewPublicationDto,
+} from './dto/publication.dto';
+import { CampaignPublishedEvent, CampaignViewedEvent } from './events';
 import { CampaignService } from './services/campaign.service';
+import { ANALYTICS } from '@events/analytics';
+import { AnalyticsRequestReceivedEvent } from 'src/event';
+import { createHash } from 'crypto';
 
 @Controller('campaign/publications')
 export class PublicationController {
@@ -27,6 +33,34 @@ export class PublicationController {
     private campaignService: CampaignService,
     private eventEmitter: EventEmitter2,
   ) {}
+
+  @OnEvent(ANALYTICS)
+  async registerBroadcastView(arg: AnalyticsRequestReceivedEvent) {
+    if (arg.type != 'broadcast') return;
+    try {
+      const { deviceInfo: di } = BroadcastViewUpsertSchema.parse(arg.data);
+      const cipher = createHash('sha256');
+      cipher.update(di.hash);
+      cipher.update(arg.ip);
+      cipher.update(arg.userAgent);
+
+      const hash = cipher.digest('hex');
+      const { clicks } = await this.campaignService.upsertBroadcastView(
+        arg.key,
+        arg.ip,
+        hash,
+        arg.userAgent,
+      );
+      if (clicks > 1) return;
+
+      await this.eventEmitter.emitAsync(
+        CAMPAIGN_VIEWED,
+        new CampaignViewedEvent(arg.key, undefined, arg.user),
+      );
+    } catch (e) {
+      this.logger.error(e.message, e.stack);
+    }
+  }
 
   @Post(':campaign')
   @ApiParam({

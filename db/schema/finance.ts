@@ -130,7 +130,12 @@ export const fundingBalances = pgView('vw_funding_balances').as((qb) => {
         ),
     })
     .from(walletTransactions)
-    .where(eq(walletTransactions.status, 'complete'))
+    .where(
+      and(
+        eq(walletTransactions.status, 'complete'),
+        eq(walletTransactions.type, 'funding'),
+      ),
+    )
     .groupBy(walletTransactions.to)
     .as('incoming_transactions');
 
@@ -163,11 +168,10 @@ export const fundingBalances = pgView('vw_funding_balances').as((qb) => {
   return qb
     .select({
       id: wallets.id,
-      ownerId: wallets.ownedBy,
+      owner: wallets.ownedBy,
       balance: sql<number>`
         ${wallets.startingBalance} -
-        COALESCE(${allocationSummary.totalAllocated},0) -
-        COALESCE(${outgoingTransactions.totalOutgoing},0) +
+        COALESCE(${allocationSummary.totalAllocated},0) +
         COALESCE(${incomingTransactions.totalIncoming},0)
       `.as('balance'),
     })
@@ -175,36 +179,36 @@ export const fundingBalances = pgView('vw_funding_balances').as((qb) => {
     .leftJoin(incomingTransactions, (w) =>
       eq(incomingTransactions.walletId, w.id),
     )
-    .leftJoin(outgoingTransactions, (w) =>
-      eq(outgoingTransactions.walletId, w.id),
-    )
     .leftJoin(allocationSummary, (w) => eq(allocationSummary.walletId, w.id));
 });
 
-export const rewardBalances = pgView('vw_reward_balances').as((qb) =>
-  qb
+export const rewardBalances = pgView('vw_reward_balances').as((qb) => {
+  return qb
     .select({
       id: wallets.id,
+      owner: wallets.ownedBy,
       balance: sql<number>`
       SUM(
         CASE
-          WHEN ${and(eq(walletTransactions.from, wallets.id), eq(walletTransactions.type, 'reward'), eq(walletTransactions.status, 'complete'))} THEN -${walletTransactions.value}
-          WHEN ${and(eq(walletTransactions.to, wallets.id), eq(walletTransactions.type, 'reward'), eq(walletTransactions.status, 'complete'))} THEN ${walletTransactions.value}
+          WHEN ${and(eq(walletTransactions.to, wallets.id), eq(walletTransactions.type, 'reward'))} THEN ${walletTransactions.value}
+          WHEN ${and(eq(walletTransactions.from, wallets.id), eq(walletTransactions.type, 'withdrawal'))} THEN -1 * ${walletTransactions.value}
           ELSE 0
         END
-      )::BIGINT`.as('balance'),
-      ownerId: wallets.ownedBy,
+      )
+    `.as('balance'),
     })
     .from(wallets)
-    .leftJoin(walletTransactions, (wallet) =>
-      or(
-        eq(wallet.id, walletTransactions.from),
-        eq(wallet.id, walletTransactions.to),
+    .leftJoin(walletTransactions, (r) =>
+      and(
+        eq(walletTransactions.status, 'complete'),
+        or(
+          eq(walletTransactions.from, wallets.id),
+          eq(walletTransactions.to, wallets.id),
+        ),
       ),
     )
-    .leftJoin(users, (wallet) => eq(wallet.ownerId, users.id))
-    .groupBy(wallets.id, wallets.ownedBy),
-);
+    .groupBy(wallets.id);
+});
 
 export const vwCreditAllocations = pgView('vw_credit_allocations').as((qb) => {
   return qb

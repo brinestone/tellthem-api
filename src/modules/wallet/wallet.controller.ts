@@ -1,3 +1,4 @@
+import { CAMPAIGN_VIEWED } from '@events/campaign';
 import {
   PAYMENT_COLLECTION_REQUESTED,
   PAYMENT_STATUS_CHANGED,
@@ -6,6 +7,7 @@ import { USER_CREATED, USER_DELETED } from '@events/user';
 import { BALANCE_UPDATED, NEW_WALLET, WALLET_DELETED } from '@events/wallet';
 import { User } from '@modules/auth/decorators';
 import { UserCreatedEvent, UserDeletedEvent } from '@modules/auth/events';
+import { CampaignViewedEvent } from '@modules/campaign/events';
 import {
   CollectPaymentRequestedEvent,
   PaymentUpdatedEvent,
@@ -14,6 +16,8 @@ import { Body, Controller, Get, Logger, Post, Req } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { UserInfo } from '@schemas/users';
+import { Request } from 'express';
+import { ZodValidationPipe } from 'nestjs-zod';
 import {
   BalancesSchema,
   WalletTopupInput,
@@ -26,9 +30,11 @@ import {
   WalletCreatedEvent,
   WalletDeletedEvent,
 } from './events';
-import { WalletService } from './wallet.service';
-import { Request } from 'express';
-import { ZodValidationPipe } from 'nestjs-zod';
+import {
+  InsufficientFundsError,
+  ParametersError,
+  WalletService,
+} from './wallet.service';
 
 @Controller('wallet')
 export class WalletController {
@@ -38,6 +44,35 @@ export class WalletController {
     private eventEmitter: EventEmitter2,
     private configService: ConfigService,
   ) {}
+
+  @OnEvent(CAMPAIGN_VIEWED)
+  async computeRewardsOnCampaignViewed(arg: CampaignViewedEvent) {
+    try {
+      const {
+        broadcaster,
+        campaignOwner,
+        srcWallet,
+        destWallet,
+        transactionId,
+      } = await this.walletService.transferRewards(arg.broadcast);
+
+      this.logger.log('new wallet transaction recorded', { transactionId });
+
+      await this.eventEmitter.emitAsync(
+        BALANCE_UPDATED,
+        new WalletBalanceUpdatedEvent(srcWallet, campaignOwner),
+      );
+ 
+      await this.eventEmitter.emitAsync(
+        BALANCE_UPDATED,
+        new WalletBalanceUpdatedEvent(destWallet, broadcaster),
+      );
+    } catch (e) {
+      if (e instanceof ParametersError || e instanceof InsufficientFundsError)
+        this.logger.warn(e.message);
+      else this.logger.error(e.message, e.stack);
+    }
+  }
 
   @Get('transfers')
   async onFindUserWalletTransfers(
@@ -69,7 +104,7 @@ export class WalletController {
       );
 
       for (const { id, owner } of affectedWallets) {
-        void this.eventEmitter.emitAsync(
+        await this.eventEmitter.emitAsync(
           BALANCE_UPDATED,
           new WalletBalanceUpdatedEvent(id, owner),
         );

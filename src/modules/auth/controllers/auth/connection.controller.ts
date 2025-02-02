@@ -38,7 +38,7 @@ import {
   AccountConnectionSchema,
   UserInfo,
 } from '@schemas/users';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { zodToOpenAPI, ZodValidationPipe } from 'nestjs-zod';
 import {
   concatMap,
@@ -142,7 +142,7 @@ Please use the information below to make an attractive post to attact your frien
               return group$.pipe(
                 delayWhen((_, i) => (i % 30 == 0 && i > 0 ? of(1000) : of(0))),
                 concatMap((connection) => {
-                  const url = `${process.env['TUNNEL_ORIGIN'] || this.cs.getOrThrow<string>('ORIGIN')}/campaign/shared_content/click?b=${connection.broadcast}`;
+                  const url = `${this.cs.getOrThrow<string>('FRONT_END_ORIGIN')}/analytics?id=${connection.broadcast}&t=broadcast&r=${encodeURIComponent(campaign.redirectUrl as string)}`;
                   return forkJoin([
                     of(connection),
                     axios.post<PxlShortLinkResponse>(
@@ -189,7 +189,7 @@ Please use the information below to make an attractive post to attact your frien
         }),
       )
       .subscribe({
-        error: (error: Error) => {
+        error: (error: AxiosError) => {
           this.logger.error(error.message, error.stack);
         },
       });

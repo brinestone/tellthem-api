@@ -1,20 +1,27 @@
+import { ANALYTICS } from '@events/analytics';
 import { PREFS_UPDATED } from '@events/user';
 import { BALANCE_UPDATED } from '@events/wallet';
 import { Public, User } from '@modules/auth/decorators';
 import { UserPrefsUpdatedEvent } from '@modules/auth/events';
+import { RecpatchaGuard } from '@modules/auth/guards';
 import { WalletBalanceUpdatedEvent } from '@modules/wallet/events';
 import {
+  Body,
   Controller,
   Get,
+  Headers,
   Ip,
   Logger,
+  Post,
   Query,
   Sse,
+  UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   ApiBearerAuth,
+  ApiExcludeEndpoint,
   ApiOperation,
   ApiProduces,
   ApiQuery,
@@ -25,6 +32,7 @@ import { createZodDto, ZodValidationPipe } from 'nestjs-zod';
 import { filter, from, Subject, tap, toArray } from 'rxjs';
 import { z } from 'zod';
 import * as CountryData from './assets/countries.json';
+import { AnalyticsRequestReceivedEvent } from './event';
 
 export const GetCountryByIso2CodeSchema = z.object({
   alpha2Code: z
@@ -39,6 +47,13 @@ export const GetCountryByIso2CodeSchema = z.object({
     ),
 });
 
+export const AnalyticsRequestSchema = z.object({
+  type: z.enum(['broadcast']),
+  key: z.string(),
+  data: z.record(z.any()),
+});
+
+class AnalyticsRequestDto extends createZodDto(AnalyticsRequestSchema) {}
 class GetCountryByIsoCodeDto extends createZodDto(GetCountryByIso2CodeSchema) {}
 
 interface MessageEvent {
@@ -55,7 +70,32 @@ export class AppController {
     number,
     Record<string, Subject<MessageEvent>>
   >();
-  constructor() {}
+  constructor(private eventEmitter: EventEmitter2) {}
+
+  @Public()
+  @Post('analytics')
+  @UseGuards(RecpatchaGuard)
+  @UsePipes(ZodValidationPipe)
+  @ApiExcludeEndpoint()
+  async handleAnalytics(
+    @Body() { data, key, type }: AnalyticsRequestDto,
+    @Ip() ip: string,
+    @Headers() headers: Record<string, string>,
+    @User() user?: UserInfo,
+  ) {
+    const userAgent = headers['user-agent'];
+    await this.eventEmitter.emitAsync(
+      ANALYTICS,
+      new AnalyticsRequestReceivedEvent(
+        ip,
+        userAgent,
+        key,
+        type,
+        data,
+        user?.id,
+      ),
+    );
+  }
 
   @Get('countries')
   @Public()

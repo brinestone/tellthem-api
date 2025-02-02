@@ -1,15 +1,17 @@
 import { walletCreditAllocations, walletTransactions } from '@schemas/finance';
-import { and, count, eq, sql } from 'drizzle-orm';
+import { and, count, eq, sql, sum } from 'drizzle-orm';
 import {
   bigint,
   boolean,
   date,
+  integer,
   interval,
   pgEnum,
   pgTable,
   pgView,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -21,18 +23,30 @@ import {
 import { z } from 'zod';
 import { accountConnections, users } from './users';
 
-export const broadcastViews = pgTable('broadcast_views', {
-  id: uuid().primaryKey().defaultRandom(),
-  publication: bigint({ mode: 'number' }).references(
-    () => campaignPublications.id,
-    { onDelete: 'set null' },
-  ),
-  broadcast: uuid()
-    .notNull()
-    .references(() => publicationBroadcasts.id, { onDelete: 'cascade' }),
-  viewedAt: timestamp({ mode: 'date' }).notNull().defaultNow(),
-  ip: varchar({ length: 39 }),
-});
+export const broadcastViews = pgTable(
+  'broadcast_views',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    publication: bigint({ mode: 'number' }).references(
+      () => campaignPublications.id,
+      { onDelete: 'set null' },
+    ),
+    broadcast: uuid()
+      .notNull()
+      .references(() => publicationBroadcasts.id, { onDelete: 'cascade' }),
+    viewedAt: timestamp({ mode: 'date' }).notNull().defaultNow(),
+    deviceHash: varchar({ length: 64 }).notNull(),
+    ip: varchar({ length: 39 }).notNull(),
+    userAgent: text(),
+    clickCount: integer().notNull().default(1),
+    user: bigint({ mode: 'number' }).references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => ({
+    indices: uniqueIndex().on(table.broadcast, table.deviceHash, table.ip),
+  }),
+);
 
 export const publicationBroadcasts = pgTable('publication_broadcasts', {
   id: uuid().primaryKey().defaultRandom(),
@@ -166,7 +180,8 @@ export const vwCampaignPublications = pgView('vw_campaign_publications').as(
     return qb
       .select({
         totalBroadcasts: count(publicationBroadcasts.id).as('broadcast_count'),
-        totalClicks: count(broadcastViews.id).as('click_count'),
+        uniqueVisits: count(broadcastViews.id).as('unique_visits'),
+        totalVisits: sum(broadcastViews.clickCount).as('total_visits'),
         totalExhaustedCredits:
           sql<number>`COALESCE(SUM(${walletTransactions.value}), 0)`.as(
             'total_exhausted_credits',
