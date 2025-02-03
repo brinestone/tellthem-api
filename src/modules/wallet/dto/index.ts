@@ -38,7 +38,7 @@ export const WalletTopupInputValidationSchema = z.object({
 export type WalletTopupInput = z.infer<typeof WalletTopupInputValidationSchema>;
 
 export const WalletTransferSchema = z.object({
-  burst: z.union([z.string(), z.date()]).pipe(z.coerce.date()),
+  burst: z.union([z.string(), z.date()]).pipe(z.coerce.date()).optional(),
   creditAllocationId: z.string().uuid().nullable(),
   creditAllocation: z
     .object({
@@ -66,7 +66,8 @@ export const WalletTransferGroupSchema = z.object({
   burst: z.union([z.string(), z.date()]).pipe(z.coerce.date()),
   fundingRewardsRatio: z
     .union([z.string(), z.number()])
-    .pipe(z.coerce.number()),
+    .nullable()
+    .pipe(z.coerce.number().nullable()),
   owner: z.union([z.string(), z.number()]).pipe(z.coerce.number()),
   transferredCredits: z.union([z.string(), z.number()]).pipe(z.coerce.number()),
   wallet: z.string().uuid(),

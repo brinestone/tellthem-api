@@ -287,5 +287,5 @@ export const vwWalletTransfers = pgView('vw_wallet_transfers').as((qb) =>
     )
 
     .groupBy(wallets.id, walletTransactions.id, paymentTransactions.id)
-    .orderBy(desc(walletTransactions.recordedAt)),
+    .orderBy(({ recordedAt }) => desc(recordedAt)),
 );

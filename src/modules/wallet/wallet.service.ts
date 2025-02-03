@@ -17,7 +17,7 @@ import {
   walletTransactions,
 } from '@schemas/finance';
 import { accountConnections } from '@schemas/users';
-import { and, count, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, sql, desc } from 'drizzle-orm';
 import {
   from,
   identity,
@@ -194,7 +194,6 @@ export class WalletService {
               type: vwWalletTransfers.type,
               notes: vwWalletTransfers.notes,
               recordedAt: vwWalletTransfers.recordedAt,
-              burst: vwWalletTransfers.burst,
               creditAllocationId: vwWalletTransfers.creditAllocation,
               paymentTransactionId: vwWalletTransfers.payment,
               creditAllocation: {
@@ -216,7 +215,8 @@ export class WalletService {
             )
             .where(
               sql`vw_wallet_transfers.burst=${group.burst} AND vw_wallet_transfers.wallet=${group.wallet}`,
-            ),
+            )
+            .orderBy(desc(vwWalletTransfers.recordedAt)),
         ).pipe(map((transfers) => ({ ...group, transfers })));
       }),
       toArray(),
