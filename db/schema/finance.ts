@@ -1,4 +1,4 @@
-import { and, eq, or, sql } from 'drizzle-orm';
+import { and, desc, eq, or, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -82,7 +82,6 @@ export const walletTransactions = pgTable('wallet_transactions', {
   status: transactionStatus().default('pending'),
   type: walletTransactionType().notNull(),
   notes: text(),
-  // accountTransaction: uuid().references(() => paymentTransactions.id),
   creditAllocation: uuid().references(() => walletCreditAllocations.id), // indicates that this transaction exhausts the allocation's value
 });
 
@@ -138,19 +137,6 @@ export const fundingBalances = pgView('vw_funding_balances').as((qb) => {
     )
     .groupBy(walletTransactions.to)
     .as('incoming_transactions');
-
-  const outgoingTransactions = qb
-    .select({
-      walletId: walletTransactions.from,
-      totalOutgoing:
-        sql<number>`COALESCE(SUM(${walletTransactions.value}), 0)`.as(
-          'total_outgoing',
-        ),
-    })
-    .from(walletTransactions)
-    .where(eq(walletTransactions.status, 'complete'))
-    .groupBy(walletTransactions.from)
-    .as('outgoing_transactions');
 
   const allocationSummary = qb
     .select({
@@ -235,3 +221,71 @@ export const vwCreditAllocations = pgView('vw_credit_allocations').as((qb) => {
     )
     .groupBy(walletCreditAllocations.id);
 });
+
+export const vwWalletTransferGroups = pgView('vw_wallet_transfer_groups').as(
+  (qb) =>
+    qb
+      .select({
+        wallet: sql<string>`${wallets.id}`.as('wallet'),
+        owner: sql<number>`${wallets.ownedBy}`.as('owner'),
+        burst: sql<Date | null>`DATE(${walletTransactions.recordedAt})`.as(
+          'burst',
+        ),
+        transferredCredits: sql<number>`
+        SUM(CASE
+              WHEN ${eq(wallets.id, walletTransactions.from)} THEN -${walletTransactions.value}
+              WHEN ${eq(wallets.id, walletTransactions.to)} THEN ${walletTransactions.value}
+              ELSE 0
+            END
+        )
+      `.as('transferred_credits'),
+        fundingRewardsRatio: sql<number | null>`
+        COALESCE(COUNT(CASE WHEN ${and(eq(walletTransactions.to, wallets.id), eq(walletTransactions.type, 'funding'))} THEN 1 END),0)
+        /
+        NULLIF(COUNT(CASE WHEN ${and(eq(walletTransactions.to, wallets.id), eq(walletTransactions.type, 'reward'))} THEN 1 END), 0)
+      `.as('funding_to_reward_ratio'),
+      })
+      .from(wallets)
+      .leftJoin(walletTransactions, () =>
+        or(
+          eq(walletTransactions.from, wallets.id),
+          eq(walletTransactions.to, wallets.id),
+        ),
+      )
+      .groupBy(({ burst }) => [burst, wallets.id])
+      .orderBy(({ burst }) => desc(burst)),
+);
+
+export const vwWalletTransfers = pgView('vw_wallet_transfers').as((qb) =>
+  qb
+    .select({
+      wallet: sql<string>`${wallets.id}`.as('wallet'),
+      transaction: sql<string>`${walletTransactions.id}`.as('transaction_id'),
+      credits: sql<number>`
+    CASE
+      WHEN ${eq(walletTransactions.from, wallets.id)} THEN -1 * ${walletTransactions.value}
+      WHEN ${eq(walletTransactions.to, wallets.id)} THEN ${walletTransactions.value}
+    END
+  `.as('transferred_credits'),
+      status: walletTransactions.status,
+      type: walletTransactions.type,
+      notes: walletTransactions.notes,
+      recordedAt: walletTransactions.recordedAt,
+      burst: sql<Date>`DATE(${walletTransactions.recordedAt})`.as('burst'),
+      creditAllocation: walletTransactions.creditAllocation,
+      payment: sql<string | null>`${paymentTransactions.id}`.as('payment'),
+    })
+    .from(walletTransactions)
+    .leftJoin(wallets, () =>
+      or(
+        eq(walletTransactions.from, wallets.id),
+        eq(walletTransactions.to, wallets.id),
+      ),
+    )
+    .leftJoin(paymentTransactions, (r) =>
+      eq(paymentTransactions.walletTransaction, r.transaction),
+    )
+
+    .groupBy(wallets.id, walletTransactions.id, paymentTransactions.id)
+    .orderBy(desc(walletTransactions.recordedAt)),
+);

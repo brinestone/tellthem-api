@@ -1,1 +1,0 @@
-ALTER TABLE "broadcast_views" ALTER COLUMN "clickCount" SET NOT NULL;

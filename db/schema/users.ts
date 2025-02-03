@@ -135,20 +135,24 @@ export const accountConnectionStatus = pgEnum('account_connection_status', [
   'inactive',
   'reconnect_required',
 ]);
-export const accountConnections = pgTable('account_connections', {
-  id: uuid().primaryKey().defaultRandom(),
-  createdAt: timestamp({ mode: 'date' }).defaultNow(),
-  updatedAt: timestamp({ mode: 'date' })
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-  user: bigint({ mode: 'number' })
-    .notNull()
-    .references(() => users.id),
-  provider: accountConnectionProviders().notNull(),
-  params: jsonb().notNull(),
-  status: accountConnectionStatus().notNull().default('active'),
-  providerId: varchar({ length: 255 }).notNull(),
-});
+export const accountConnections = pgTable(
+  'account_connections',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    createdAt: timestamp({ mode: 'date' }).defaultNow(),
+    updatedAt: timestamp({ mode: 'date' })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    user: bigint({ mode: 'number' })
+      .notNull()
+      .references(() => users.id),
+    provider: accountConnectionProviders().notNull(),
+    params: jsonb().notNull(),
+    status: accountConnectionStatus().notNull().default('active'),
+    providerId: varchar({ length: 255 }).notNull(),
+  },
+  (table) => ({ idx: uniqueIndex().on(table.provider, table.providerId) }),
+);
 
 export const federatedCredentials = pgTable('federated_credentials', {
   id: varchar({ length: 255 }).notNull().primaryKey(),

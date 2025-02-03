@@ -142,7 +142,7 @@ Please use the information below to make an attractive post to attact your frien
               return group$.pipe(
                 delayWhen((_, i) => (i % 30 == 0 && i > 0 ? of(1000) : of(0))),
                 concatMap((connection) => {
-                  const url = `${this.cs.getOrThrow<string>('FRONT_END_ORIGIN')}/analytics?id=${connection.broadcast}&t=broadcast&r=${encodeURIComponent(campaign.redirectUrl as string)}`;
+                  const url = `${this.cs.getOrThrow<string>('VALID_AUDIENCE')}/analytics?id=${connection.broadcast}&t=broadcast&r=${encodeURIComponent(campaign.redirectUrl as string)}`;
                   return forkJoin([
                     of(connection),
                     axios.post<PxlShortLinkResponse>(
@@ -265,7 +265,7 @@ Please use the information below to make an attractive post to attact your frien
       if (existingUser) {
         this.logger.debug('Existing user found');
         await context.reply(
-          `Your account is already linked to *${existingUser.names}*. If you want to disconnect your Telegram account from the linked account please click the *Disconnect* button on your account's settings page.`,
+          `Your account is already linked to *${existingUser.names} (${existingUser.email})*. If you want to disconnect your Telegram account from the linked account please click the *Disconnect* button on your account's settings page.`,
           { parse_mode: 'Markdown' },
         );
         return;
@@ -350,12 +350,17 @@ ${settingsPageLink} and enter the code shown below, to finish connecting your ac
     @Query(new ZodValidationPipe()) input: TelegramCodeVerificationInput,
     @User() { id }: UserInfo,
   ) {
-    const connectionId =
+    const { id: connectionId, data } =
       await this.connectionService.registerTelegramConnection(id, input.code);
 
     void this.eventEmitter.emitAsync(
       NEW_ACCOUNT_CONNECTION,
       new AccountConnectionCreatedEvent('telegram', connectionId, id),
+    );
+
+    await this.bot.telegram.sendMessage(
+      (data as unknown & { chatId: number }).chatId,
+      'Congratulations! Your account has been connected successfully!! 🎊',
     );
   }
 

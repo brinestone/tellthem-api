@@ -79,7 +79,7 @@ export class AuthController {
 
     res.redirect(
       new URL(
-        `/auth/oauth2/callback?access=${accessToken}&refresh=${refreshToken}`, 
+        `/auth/oauth2/callback?access=${accessToken}&refresh=${refreshToken}`,
         this.configService.getOrThrow<string>('FRONT_END_ORIGIN'),
       ).toString(),
     );

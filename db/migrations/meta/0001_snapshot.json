@@ -1,6 +1,6 @@
 {
-  "id": "a575035d-a3e0-43a7-95fc-956b735c90b7",
-  "prevId": "111231bd-b00f-47af-86f9-5d7fdf86dcb8",
+  "id": "969d279e-9b1a-47dd-8b67-db451f5a44eb",
+  "prevId": "a20279a6-f543-499f-952f-e64245a0c492",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -56,13 +56,19 @@
           "name": "clickCount",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "default": 1
+        },
+        "user": {
+          "name": "user",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
-        "broadcast_views_broadcast_deviceHash_index": {
-          "name": "broadcast_views_broadcast_deviceHash_index",
+        "broadcast_views_broadcast_deviceHash_ip_index": {
+          "name": "broadcast_views_broadcast_deviceHash_ip_index",
           "columns": [
             {
               "expression": "broadcast",
@@ -72,6 +78,12 @@
             },
             {
               "expression": "deviceHash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ip",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -108,6 +120,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "broadcast_views_user_users_id_fk": {
+          "name": "broadcast_views_user_users_id_fk",
+          "tableFrom": "broadcast_views",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1151,7 +1176,29 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "account_connections_provider_providerId_index": {
+          "name": "account_connections_provider_providerId_index",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "providerId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "account_connections_user_users_id_fk": {
           "name": "account_connections_user_users_id_fk",
@@ -1854,7 +1901,7 @@
           "notNull": true
         }
       },
-      "definition": "select \"wallets\".\"id\", \"wallets\".\"ownedBy\", \n        \"wallets\".\"startingBalance\" -\n        COALESCE(\"total_allocated\",0) -\n        COALESCE(\"total_outgoing\",0) +\n        COALESCE(\"total_incoming\",0)\n       as \"balance\" from \"wallets\" left join (select \"to\", COALESCE(SUM(\"value\"), 0) as \"total_incoming\" from \"wallet_transactions\" where \"wallet_transactions\".\"status\" = 'complete' group by \"wallet_transactions\".\"to\") \"incoming_transactions\" on \"incoming_transactions\".\"to\" = \"wallets\".\"id\" left join (select \"from\", COALESCE(SUM(\"value\"), 0) as \"total_outgoing\" from \"wallet_transactions\" where \"wallet_transactions\".\"status\" = 'complete' group by \"wallet_transactions\".\"from\") \"outgoing_transactions\" on \"outgoing_transactions\".\"from\" = \"wallets\".\"id\" left join (select \"wallet\", COALESCE(SUM(\"allocated\"), 0) as \"total_allocated\" from \"credit_allocations\" where \"credit_allocations\".\"status\" = 'active' group by \"credit_allocations\".\"wallet\") \"allocation_summary\" on \"allocation_summary\".\"wallet\" = \"wallets\".\"id\"",
+      "definition": "select \"wallets\".\"id\", \"wallets\".\"ownedBy\", \n        \"wallets\".\"startingBalance\" -\n        COALESCE(\"total_allocated\",0) +\n        COALESCE(\"total_incoming\",0)\n       as \"balance\" from \"wallets\" left join (select \"to\", COALESCE(SUM(\"value\"), 0) as \"total_incoming\" from \"wallet_transactions\" where (\"wallet_transactions\".\"status\" = 'complete' and \"wallet_transactions\".\"type\" = 'funding') group by \"wallet_transactions\".\"to\") \"incoming_transactions\" on \"incoming_transactions\".\"to\" = \"wallets\".\"id\" left join (select \"wallet\", COALESCE(SUM(\"allocated\"), 0) as \"total_allocated\" from \"credit_allocations\" where \"credit_allocations\".\"status\" = 'active' group by \"credit_allocations\".\"wallet\") \"allocation_summary\" on \"allocation_summary\".\"wallet\" = \"wallets\".\"id\"",
       "name": "vw_funding_balances",
       "schema": "public",
       "isExisting": false,
@@ -1876,7 +1923,7 @@
           "notNull": true
         }
       },
-      "definition": "select \"wallets\".\"id\", \n      SUM(\n        CASE\n          WHEN (\"wallet_transactions\".\"from\" = \"wallets\".\"id\" and \"wallet_transactions\".\"type\" = 'reward' and \"wallet_transactions\".\"status\" = 'complete') THEN -\"wallet_transactions\".\"value\"\n          WHEN (\"wallet_transactions\".\"to\" = \"wallets\".\"id\" and \"wallet_transactions\".\"type\" = 'reward' and \"wallet_transactions\".\"status\" = 'complete') THEN \"wallet_transactions\".\"value\"\n          ELSE 0\n        END\n      )::BIGINT as \"balance\", \"wallets\".\"ownedBy\" from \"wallets\" left join \"wallet_transactions\" on (\"wallets\".\"id\" = \"wallet_transactions\".\"from\" or \"wallets\".\"id\" = \"wallet_transactions\".\"to\") left join \"users\" on \"wallets\".\"ownedBy\" = \"users\".\"id\" group by \"wallets\".\"id\", \"wallets\".\"ownedBy\"",
+      "definition": "select \"wallets\".\"id\", \"wallets\".\"ownedBy\", \n      SUM(\n        CASE\n          WHEN (\"wallet_transactions\".\"to\" = \"wallets\".\"id\" and \"wallet_transactions\".\"type\" = 'reward') THEN \"wallet_transactions\".\"value\"\n          WHEN (\"wallet_transactions\".\"from\" = \"wallets\".\"id\" and \"wallet_transactions\".\"type\" = 'withdrawal') THEN -1 * \"wallet_transactions\".\"value\"\n          ELSE 0\n        END\n      )\n     as \"balance\" from \"wallets\" left join \"wallet_transactions\" on (\"wallet_transactions\".\"status\" = 'complete' and (\"wallet_transactions\".\"from\" = \"wallets\".\"id\" or \"wallet_transactions\".\"to\" = \"wallets\".\"id\")) group by \"wallets\".\"id\"",
       "name": "vw_reward_balances",
       "schema": "public",
       "isExisting": false,
@@ -1906,6 +1953,59 @@
       },
       "definition": "select \"credit_allocations\".\"id\", \"credit_allocations\".\"wallet\", \"credit_allocations\".\"allocated\", \n        SUM(\n          CASE\n            WHEN (\"wallet_transactions\".\"type\" = 'reward' and \"wallet_transactions\".\"from\" = \"credit_allocations\".\"wallet\") THEN \"wallet_transactions\".\"value\"\n            ELSE 0\n          END\n        )\n       as \"exhausted\" from \"credit_allocations\" left join \"wallet_transactions\" on (\"credit_allocations\".\"id\" = \"wallet_transactions\".\"creditAllocation\" and \"wallet_transactions\".\"type\" = 'reward' and \"wallet_transactions\".\"from\" = \"credit_allocations\".\"wallet\") group by \"credit_allocations\".\"id\"",
       "name": "vw_credit_allocations",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    },
+    "public.vw_wallet_transfers": {
+      "columns": {
+        "status": {
+          "name": "status",
+          "type": "transaction_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'pending'"
+        },
+        "type": {
+          "name": "type",
+          "type": "wallet_transaction_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recordedAt": {
+          "name": "recordedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "definition": "select \"wallets\".\"id\" as \"wallet\", \"wallet_transactions\".\"id\" as \"transaction_id\", \n    CASE\n      WHEN \"wallet_transactions\".\"from\" = \"wallets\".\"id\" THEN -1 * \"wallet_transactions\".\"value\"\n      WHEN \"wallet_transactions\".\"to\" = \"wallets\".\"id\" THEN \"wallet_transactions\".\"value\"\n    END\n   as \"transferred_credits\", \"wallet_transactions\".\"status\", \"wallet_transactions\".\"type\", \"wallet_transactions\".\"notes\", \"wallet_transactions\".\"recordedAt\", DATE(\"wallet_transactions\".\"recordedAt\") as \"burst\" from \"wallet_transactions\" left join \"wallets\" on (\"wallet_transactions\".\"from\" = \"wallets\".\"id\" or \"wallet_transactions\".\"to\" = \"wallets\".\"id\") group by \"wallets\".\"id\", \"wallet_transactions\".\"id\"",
+      "name": "vw_wallet_transfers",
+      "schema": "public",
+      "isExisting": false,
+      "materialized": false
+    },
+    "public.vw_wallet_transfer_groups": {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        }
+      },
+      "definition": "select \"wallets\".\"id\", DATE(\"wallet_transactions\".\"recordedAt\") as \"burst\", \n        SUM(CASE\n              WHEN \"wallets\".\"id\" = \"wallet_transactions\".\"from\" THEN -\"wallet_transactions\".\"value\"\n              WHEN \"wallets\".\"id\" = \"wallet_transactions\".\"to\" THEN \"wallet_transactions\".\"value\"\n              ELSE 0\n            END\n        )\n       as \"transferred_credits\", \n        COALESCE(COUNT(CASE WHEN (\"wallet_transactions\".\"to\" = \"wallets\".\"id\" and \"wallet_transactions\".\"type\" = 'funding') THEN 1 END),0)\n        /\n        NULLIF(COUNT(CASE WHEN (\"wallet_transactions\".\"to\" = \"wallets\".\"id\" and \"wallet_transactions\".\"type\" = 'reward') THEN 1 END), 0)\n       as \"funding_to_reward_ratio\" from \"wallets\" left join \"wallet_transactions\" on (\"wallet_transactions\".\"from\" = \"wallets\".\"id\" or \"wallet_transactions\".\"to\" = \"wallets\".\"id\") group by \"burst\", \"wallets\".\"id\"",
+      "name": "vw_wallet_transfer_groups",
       "schema": "public",
       "isExisting": false,
       "materialized": false

@@ -35,6 +35,7 @@ import {
   ParametersError,
   WalletService,
 } from './wallet.service';
+import { forkJoin, map } from 'rxjs';
 
 @Controller('wallet')
 export class WalletController {
@@ -62,7 +63,7 @@ export class WalletController {
         BALANCE_UPDATED,
         new WalletBalanceUpdatedEvent(srcWallet, campaignOwner),
       );
- 
+
       await this.eventEmitter.emitAsync(
         BALANCE_UPDATED,
         new WalletBalanceUpdatedEvent(destWallet, broadcaster),
@@ -75,22 +76,18 @@ export class WalletController {
   }
 
   @Get('transfers')
-  async onFindUserWalletTransfers(
-    @Req() req: Request,
-    @User() { id }: UserInfo,
-  ) {
+  onFindUserWalletTransfers(@Req() req: Request, @User() { id }: UserInfo) {
     const { page, size } = WalletTransfersInputValidationSchema.parse(
       req.query,
     );
 
-    const transfers = await this.walletService.findWalletTransfers(
-      id,
-      page,
-      size,
-    );
-    const total = await this.walletService.countWalletUserTransactions(id);
+    const transfers$ = this.walletService.findWalletTransfers(id, page, size);
+    const total$ = this.walletService.countWalletUserTransactions(id);
 
-    return WalletTransfersResponseSchema.parse({ data: transfers, total });
+    return forkJoin({
+      groups: transfers$,
+      total: total$,
+    }).pipe(map((data) => WalletTransfersResponseSchema.parse(data)));
   }
 
   @OnEvent(PAYMENT_STATUS_CHANGED)

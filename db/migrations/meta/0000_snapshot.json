@@ -1,5 +1,5 @@
 {
-  "id": "111231bd-b00f-47af-86f9-5d7fdf86dcb8",
+  "id": "a20279a6-f543-499f-952f-e64245a0c492",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -34,14 +34,67 @@
           "notNull": true,
           "default": "now()"
         },
+        "deviceHash": {
+          "name": "deviceHash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
         "ip": {
           "name": "ip",
           "type": "varchar(39)",
           "primaryKey": false,
+          "notNull": true
+        },
+        "userAgent": {
+          "name": "userAgent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "clickCount": {
+          "name": "clickCount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "user": {
+          "name": "user",
+          "type": "bigint",
+          "primaryKey": false,
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "broadcast_views_broadcast_deviceHash_ip_index": {
+          "name": "broadcast_views_broadcast_deviceHash_ip_index",
+          "columns": [
+            {
+              "expression": "broadcast",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "deviceHash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ip",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "broadcast_views_publication_campaign_publications_id_fk": {
           "name": "broadcast_views_publication_campaign_publications_id_fk",
@@ -67,6 +120,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "broadcast_views_user_users_id_fk": {
+          "name": "broadcast_views_user_users_id_fk",
+          "tableFrom": "broadcast_views",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1110,7 +1176,29 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "account_connections_provider_providerId_index": {
+          "name": "account_connections_provider_providerId_index",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "providerId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "account_connections_user_users_id_fk": {
           "name": "account_connections_user_users_id_fk",
@@ -1759,7 +1847,7 @@
           "notNull": true
         }
       },
-      "definition": "select count(\"publication_broadcasts\".\"id\") as \"broadcast_count\", count(\"broadcast_views\".\"id\") as \"click_count\", COALESCE(SUM(\"wallet_transactions\".\"value\"), 0) as \"total_exhausted_credits\", \"credit_allocations\".\"allocated\", \"campaign_publications\".\"creditAllocation\", \"campaign_publications\".\"campaign\", \"campaign_publications\".\"updatedAt\", \"campaign_publications\".\"id\", \"campaign_publications\".\"createdAt\", \"campaigns\".\"owner\" from \"campaign_publications\" left join \"campaigns\" on \"campaigns\".\"id\" = \"campaign_publications\".\"campaign\" left join \"publication_broadcasts\" on (\"publication_broadcasts\".\"publication\" = \"campaign_publications\".\"id\" and \"publication_broadcasts\".\"ack\" = true) left join \"broadcast_views\" on \"broadcast_views\".\"publication\" = \"campaign_publications\".\"id\" left join \"credit_allocations\" on \"credit_allocations\".\"id\" = \"campaign_publications\".\"creditAllocation\" left join \"wallet_transactions\" on (\"wallet_transactions\".\"creditAllocation\" = \"campaign_publications\".\"creditAllocation\" and \"wallet_transactions\".\"status\" = 'complete' and \"wallet_transactions\".\"type\" = 'reward') group by \"credit_allocations\".\"id\", \"campaign_publications\".\"id\", \"campaigns\".\"id\"",
+      "definition": "select count(\"publication_broadcasts\".\"id\") as \"broadcast_count\", count(\"broadcast_views\".\"id\") as \"unique_visits\", sum(\"broadcast_views\".\"clickCount\") as \"total_visits\", COALESCE(SUM(\"wallet_transactions\".\"value\"), 0) as \"total_exhausted_credits\", \"credit_allocations\".\"allocated\", \"campaign_publications\".\"creditAllocation\", \"campaign_publications\".\"campaign\", \"campaign_publications\".\"updatedAt\", \"campaign_publications\".\"id\", \"campaign_publications\".\"createdAt\", \"campaigns\".\"owner\" from \"campaign_publications\" left join \"campaigns\" on \"campaigns\".\"id\" = \"campaign_publications\".\"campaign\" left join \"publication_broadcasts\" on (\"publication_broadcasts\".\"publication\" = \"campaign_publications\".\"id\" and \"publication_broadcasts\".\"ack\" = true) left join \"broadcast_views\" on \"broadcast_views\".\"publication\" = \"campaign_publications\".\"id\" left join \"credit_allocations\" on \"credit_allocations\".\"id\" = \"campaign_publications\".\"creditAllocation\" left join \"wallet_transactions\" on (\"wallet_transactions\".\"creditAllocation\" = \"campaign_publications\".\"creditAllocation\" and \"wallet_transactions\".\"status\" = 'complete' and \"wallet_transactions\".\"type\" = 'reward') group by \"credit_allocations\".\"id\", \"campaign_publications\".\"id\", \"campaigns\".\"id\"",
       "name": "vw_campaign_publications",
       "schema": "public",
       "isExisting": false,
@@ -1813,7 +1901,7 @@
           "notNull": true
         }
       },
-      "definition": "select \"wallets\".\"id\", \"wallets\".\"ownedBy\", \n        \"wallets\".\"startingBalance\" -\n        COALESCE(\"total_allocated\",0) -\n        COALESCE(\"total_outgoing\",0) +\n        COALESCE(\"total_incoming\",0)\n       as \"balance\" from \"wallets\" left join (select \"to\", COALESCE(SUM(\"value\"), 0) as \"total_incoming\" from \"wallet_transactions\" where \"wallet_transactions\".\"status\" = 'complete' group by \"wallet_transactions\".\"to\") \"incoming_transactions\" on \"incoming_transactions\".\"to\" = \"wallets\".\"id\" left join (select \"from\", COALESCE(SUM(\"value\"), 0) as \"total_outgoing\" from \"wallet_transactions\" where \"wallet_transactions\".\"status\" = 'complete' group by \"wallet_transactions\".\"from\") \"outgoing_transactions\" on \"outgoing_transactions\".\"from\" = \"wallets\".\"id\" left join (select \"wallet\", COALESCE(SUM(\"allocated\"), 0) as \"total_allocated\" from \"credit_allocations\" where \"credit_allocations\".\"status\" = 'active' group by \"credit_allocations\".\"wallet\") \"allocation_summary\" on \"allocation_summary\".\"wallet\" = \"wallets\".\"id\"",
+      "definition": "select \"wallets\".\"id\", \"wallets\".\"ownedBy\", \n        \"wallets\".\"startingBalance\" -\n        COALESCE(\"total_allocated\",0) +\n        COALESCE(\"total_incoming\",0)\n       as \"balance\" from \"wallets\" left join (select \"to\", COALESCE(SUM(\"value\"), 0) as \"total_incoming\" from \"wallet_transactions\" where (\"wallet_transactions\".\"status\" = 'complete' and \"wallet_transactions\".\"type\" = 'funding') group by \"wallet_transactions\".\"to\") \"incoming_transactions\" on \"incoming_transactions\".\"to\" = \"wallets\".\"id\" left join (select \"wallet\", COALESCE(SUM(\"allocated\"), 0) as \"total_allocated\" from \"credit_allocations\" where \"credit_allocations\".\"status\" = 'active' group by \"credit_allocations\".\"wallet\") \"allocation_summary\" on \"allocation_summary\".\"wallet\" = \"wallets\".\"id\"",
       "name": "vw_funding_balances",
       "schema": "public",
       "isExisting": false,
@@ -1835,7 +1923,7 @@
           "notNull": true
         }
       },
-      "definition": "select \"wallets\".\"id\", \n      SUM(\n        CASE\n          WHEN (\"wallet_transactions\".\"from\" = \"wallets\".\"id\" and \"wallet_transactions\".\"type\" = 'reward' and \"wallet_transactions\".\"status\" = 'complete') THEN -\"wallet_transactions\".\"value\"\n          WHEN (\"wallet_transactions\".\"to\" = \"wallets\".\"id\" and \"wallet_transactions\".\"type\" = 'reward' and \"wallet_transactions\".\"status\" = 'complete') THEN \"wallet_transactions\".\"value\"\n          ELSE 0\n        END\n      )::BIGINT as \"balance\", \"wallets\".\"ownedBy\" from \"wallets\" left join \"wallet_transactions\" on (\"wallets\".\"id\" = \"wallet_transactions\".\"from\" or \"wallets\".\"id\" = \"wallet_transactions\".\"to\") left join \"users\" on \"wallets\".\"ownedBy\" = \"users\".\"id\" group by \"wallets\".\"id\", \"wallets\".\"ownedBy\"",
+      "definition": "select \"wallets\".\"id\", \"wallets\".\"ownedBy\", \n      SUM(\n        CASE\n          WHEN (\"wallet_transactions\".\"to\" = \"wallets\".\"id\" and \"wallet_transactions\".\"type\" = 'reward') THEN \"wallet_transactions\".\"value\"\n          WHEN (\"wallet_transactions\".\"from\" = \"wallets\".\"id\" and \"wallet_transactions\".\"type\" = 'withdrawal') THEN -1 * \"wallet_transactions\".\"value\"\n          ELSE 0\n        END\n      )\n     as \"balance\" from \"wallets\" left join \"wallet_transactions\" on (\"wallet_transactions\".\"status\" = 'complete' and (\"wallet_transactions\".\"from\" = \"wallets\".\"id\" or \"wallet_transactions\".\"to\" = \"wallets\".\"id\")) group by \"wallets\".\"id\"",
       "name": "vw_reward_balances",
       "schema": "public",
       "isExisting": false,

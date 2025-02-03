@@ -99,7 +99,7 @@ export class ConnectionService {
         })
         .where(eq(verificationCodes.code, code));
 
-      return id;
+      return { id, data };
     });
   }
 

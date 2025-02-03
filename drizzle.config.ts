@@ -1,9 +1,7 @@
 import { defineConfig } from 'drizzle-kit';
 import { config } from 'dotenv';
 
-config({
-  path: '.local.env',
-});
+config();
 
 const cnf = defineConfig({
   dialect: 'postgresql',

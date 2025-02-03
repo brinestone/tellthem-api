@@ -10,12 +10,23 @@ import {
   fundingBalances,
   paymentTransactions,
   rewardBalances,
+  vwWalletTransferGroups,
+  vwWalletTransfers,
   walletCreditAllocations,
   wallets,
   walletTransactions,
 } from '@schemas/finance';
 import { accountConnections } from '@schemas/users';
-import { eq, or, desc, count, inArray, sql, and } from 'drizzle-orm';
+import { and, count, eq, inArray, sql } from 'drizzle-orm';
+import {
+  from,
+  identity,
+  map,
+  mergeMap,
+  switchMap,
+  throwError,
+  toArray,
+} from 'rxjs';
 
 export class ParametersError extends Error {
   constructor(...parameters: string[]) {
@@ -145,58 +156,71 @@ export class WalletService {
     });
   }
 
-  async countWalletUserTransactions(owner: number) {
-    const [{ total }] = await this.db
-      .select({ total: count(walletTransactions.id) })
-      .from(wallets)
-      .leftJoin(walletTransactions, () =>
-        or(
-          eq(walletTransactions.from, wallets.id),
-          eq(walletTransactions.to, wallets.id),
-        ),
-      )
-      .groupBy(wallets.id)
-      .where(eq(wallets.ownedBy, owner))
-      .limit(1);
-    return total;
+  countWalletUserTransactions(owner: number) {
+    return from(
+      this.db
+        .select({ total: count(vwWalletTransferGroups) })
+        .from(wallets)
+        .leftJoin(vwWalletTransferGroups, () =>
+          eq(vwWalletTransferGroups.wallet, wallets.id),
+        )
+        .where(eq(wallets.ownedBy, owner))
+        .limit(1),
+    ).pipe(map(([{ total }]) => total));
   }
 
-  async findWalletTransfers(owner: number, page: number, size: number) {
-    const wallet = await this.db.query.wallets.findFirst({
-      where: (w, { eq }) => eq(w.ownedBy, owner),
-    });
-
-    if (!wallet) throw new NotFoundException('User wallet not found');
-    const transactions = await this.db
-      .select({
-        id: walletTransactions.id,
-        from: walletTransactions.from,
-        to: walletTransactions.to,
-        amount: walletTransactions.value,
-        status: walletTransactions.status,
-        type: walletTransactions.type,
-        date: walletTransactions.recordedAt,
-        payment: {
-          id: paymentTransactions.id,
-          currency: paymentTransactions.currency,
-          amount: paymentTransactions.value,
-          status: paymentTransactions.status,
-        },
-      })
-      .from(walletTransactions)
-      .leftJoin(paymentTransactions, (wt) =>
-        eq(paymentTransactions.walletTransaction, wt.id),
-      )
-      .orderBy(desc(walletTransactions.recordedAt))
-      .where(
-        or(
-          eq(walletTransactions.from, wallet.id),
-          eq(walletTransactions.to, wallet.id),
-        ),
-      )
-      .offset(page * size)
-      .limit(size);
-    return transactions;
+  findWalletTransfers(owner: number, page: number, size: number) {
+    return from(
+      this.db.query.wallets.findFirst({
+        where: (w, { eq }) => eq(w.ownedBy, owner),
+      }),
+    ).pipe(
+      switchMap((wallet) => {
+        if (!wallet)
+          return throwError(() => new NotFoundException('wallet not found'));
+        return this.db
+          .select()
+          .from(vwWalletTransferGroups)
+          .where(eq(vwWalletTransferGroups.wallet, wallet.id));
+      }),
+      mergeMap(identity),
+      mergeMap((group) => {
+        return from(
+          this.db
+            .select({
+              transaction: vwWalletTransfers.transaction,
+              credits: vwWalletTransfers.credits,
+              status: vwWalletTransfers.status,
+              type: vwWalletTransfers.type,
+              notes: vwWalletTransfers.notes,
+              recordedAt: vwWalletTransfers.recordedAt,
+              burst: vwWalletTransfers.burst,
+              creditAllocationId: vwWalletTransfers.creditAllocation,
+              paymentTransactionId: vwWalletTransfers.payment,
+              creditAllocation: {
+                allocated: walletCreditAllocations.allocated,
+                status: walletCreditAllocations.status,
+              },
+              paymentTransaction: {
+                status: paymentTransactions.status,
+                amount: paymentTransactions.value,
+                currency: paymentTransactions.currency,
+              },
+            })
+            .from(vwWalletTransfers)
+            .leftJoin(paymentTransactions, (r) =>
+              eq(paymentTransactions.walletTransaction, r.transaction),
+            )
+            .leftJoin(walletCreditAllocations, (r) =>
+              eq(walletCreditAllocations.id, r.creditAllocationId),
+            )
+            .where(
+              sql`vw_wallet_transfers.burst=${group.burst} AND vw_wallet_transfers.wallet=${group.wallet}`,
+            ),
+        ).pipe(map((transfers) => ({ ...group, transfers })));
+      }),
+      toArray(),
+    );
   }
 
   async updateWalletTransaction(

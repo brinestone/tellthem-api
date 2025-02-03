@@ -51,9 +51,12 @@ export class UserService {
   }
   async findUserByConnection(provider: 'telegram', providerId: string) {
     const result = await this.db
-      .select()
+      .select({
+        userId: accountConnections.user,
+        user: users,
+      })
       .from(accountConnections)
-      .innerJoin(users, (ac) => eq(users.id, ac.user))
+      .leftJoin(users, (ac) => eq(users.id, ac.userId))
       .where(
         and(
           eq(accountConnections.providerId, providerId),
@@ -61,7 +64,7 @@ export class UserService {
         ),
       )
       .limit(1);
-    return result[0]?.users;
+    return result[0]?.user;
   }
   async findUserConnections(id: number) {
     return await this.db.query.accountConnections.findMany({

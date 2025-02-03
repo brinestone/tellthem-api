@@ -12,7 +12,11 @@ CREATE TABLE "broadcast_views" (
 	"publication" bigint,
 	"broadcast" uuid NOT NULL,
 	"viewedAt" timestamp DEFAULT now() NOT NULL,
-	"ip" varchar(39)
+	"deviceHash" varchar(64) NOT NULL,
+	"ip" varchar(39) NOT NULL,
+	"userAgent" text,
+	"clickCount" integer DEFAULT 1 NOT NULL,
+	"user" bigint
 );
 --> statement-breakpoint
 CREATE TABLE "campaign_blobs" (
@@ -204,6 +208,7 @@ CREATE TABLE "verification_codes" (
 --> statement-breakpoint
 ALTER TABLE "broadcast_views" ADD CONSTRAINT "broadcast_views_publication_campaign_publications_id_fk" FOREIGN KEY ("publication") REFERENCES "public"."campaign_publications"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "broadcast_views" ADD CONSTRAINT "broadcast_views_broadcast_publication_broadcasts_id_fk" FOREIGN KEY ("broadcast") REFERENCES "public"."publication_broadcasts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "broadcast_views" ADD CONSTRAINT "broadcast_views_user_users_id_fk" FOREIGN KEY ("user") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "campaign_blobs" ADD CONSTRAINT "campaign_blobs_campaign_campaigns_id_fk" FOREIGN KEY ("campaign") REFERENCES "public"."campaigns"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "campaign_publications" ADD CONSTRAINT "campaign_publications_campaign_campaigns_id_fk" FOREIGN KEY ("campaign") REFERENCES "public"."campaigns"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "campaign_publications" ADD CONSTRAINT "campaign_publications_creditAllocation_credit_allocations_id_fk" FOREIGN KEY ("creditAllocation") REFERENCES "public"."credit_allocations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -226,29 +231,31 @@ ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_revoked_by_users_id_
 ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_access_token_access_tokens_id_fk" FOREIGN KEY ("access_token") REFERENCES "public"."access_tokens"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_prefs" ADD CONSTRAINT "user_prefs_user_users_id_fk" FOREIGN KEY ("user") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "users" ADD CONSTRAINT "users_credentials_federated_credentials_id_fk" FOREIGN KEY ("credentials") REFERENCES "public"."federated_credentials"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "broadcast_views_broadcast_deviceHash_ip_index" ON "broadcast_views" USING btree ("broadcast","deviceHash","ip");--> statement-breakpoint
 CREATE UNIQUE INDEX "payment_methods_provider_owner_index" ON "payment_methods" USING btree ("provider","owner");--> statement-breakpoint
+CREATE UNIQUE INDEX "account_connections_provider_providerId_index" ON "account_connections" USING btree ("provider","providerId");--> statement-breakpoint
 CREATE UNIQUE INDEX "refresh_tokens_token_user_index" ON "refresh_tokens" USING btree ("token","user");--> statement-breakpoint
 CREATE VIEW "public"."vw_campaign_blobs" AS (select "campaign_blobs"."id", "campaign_blobs"."campaign", "campaign_blobs"."storage", "campaign_blobs"."uploadedAt", "campaign_blobs"."path", "campaign_blobs"."size", CASE
                               WHEN "campaign_blobs"."storage" = 'permanent' THEN ("campaign_blobs"."campaign" IS NULL)
                               WHEN "campaign_blobs"."storage" = 'temporary' THEN (NOW() > ("campaign_blobs"."updatedAt" + "campaign_blobs"."tempWindow"))
                               ELSE true
                             END as "is_stale" from "campaign_blobs" left join "campaigns" on "campaigns"."id" = "campaign_blobs"."campaign");--> statement-breakpoint
-CREATE VIEW "public"."vw_campaign_publications" AS (select count("publication_broadcasts"."id") as "broadcast_count", count("broadcast_views"."id") as "click_count", COALESCE(SUM("wallet_transactions"."value"), 0) as "total_exhausted_credits", "credit_allocations"."allocated", "campaign_publications"."creditAllocation", "campaign_publications"."campaign", "campaign_publications"."updatedAt", "campaign_publications"."id", "campaign_publications"."createdAt", "campaigns"."owner" from "campaign_publications" left join "campaigns" on "campaigns"."id" = "campaign_publications"."campaign" left join "publication_broadcasts" on ("publication_broadcasts"."publication" = "campaign_publications"."id" and "publication_broadcasts"."ack" = true) left join "broadcast_views" on "broadcast_views"."publication" = "campaign_publications"."id" left join "credit_allocations" on "credit_allocations"."id" = "campaign_publications"."creditAllocation" left join "wallet_transactions" on ("wallet_transactions"."creditAllocation" = "campaign_publications"."creditAllocation" and "wallet_transactions"."status" = 'complete' and "wallet_transactions"."type" = 'reward') group by "credit_allocations"."id", "campaign_publications"."id", "campaigns"."id");--> statement-breakpoint
+CREATE VIEW "public"."vw_campaign_publications" AS (select count("publication_broadcasts"."id") as "broadcast_count", count("broadcast_views"."id") as "unique_visits", sum("broadcast_views"."clickCount") as "total_visits", COALESCE(SUM("wallet_transactions"."value"), 0) as "total_exhausted_credits", "credit_allocations"."allocated", "campaign_publications"."creditAllocation", "campaign_publications"."campaign", "campaign_publications"."updatedAt", "campaign_publications"."id", "campaign_publications"."createdAt", "campaigns"."owner" from "campaign_publications" left join "campaigns" on "campaigns"."id" = "campaign_publications"."campaign" left join "publication_broadcasts" on ("publication_broadcasts"."publication" = "campaign_publications"."id" and "publication_broadcasts"."ack" = true) left join "broadcast_views" on "broadcast_views"."publication" = "campaign_publications"."id" left join "credit_allocations" on "credit_allocations"."id" = "campaign_publications"."creditAllocation" left join "wallet_transactions" on ("wallet_transactions"."creditAllocation" = "campaign_publications"."creditAllocation" and "wallet_transactions"."status" = 'complete' and "wallet_transactions"."type" = 'reward') group by "credit_allocations"."id", "campaign_publications"."id", "campaigns"."id");--> statement-breakpoint
 CREATE VIEW "public"."vw_categories" AS (select "categories"."id", "categories"."title", COUNT("campaign_publications"."id") as "publication_count" from "categories" left join "campaigns" on "categories"."id" = ANY("campaigns"."categories") left join "campaign_publications" on "campaign_publications"."campaign" = "campaigns"."id" AND ("campaign_publications"."publishBefore" > NOW() OR "campaign_publications"."publishBefore" IS NULL) group by "categories"."id");--> statement-breakpoint
 CREATE VIEW "public"."vw_funding_balances" AS (select "wallets"."id", "wallets"."ownedBy", 
         "wallets"."startingBalance" -
-        COALESCE("total_allocated",0) -
-        COALESCE("total_outgoing",0) +
+        COALESCE("total_allocated",0) +
         COALESCE("total_incoming",0)
-       as "balance" from "wallets" left join (select "to", COALESCE(SUM("value"), 0) as "total_incoming" from "wallet_transactions" where "wallet_transactions"."status" = 'complete' group by "wallet_transactions"."to") "incoming_transactions" on "incoming_transactions"."to" = "wallets"."id" left join (select "from", COALESCE(SUM("value"), 0) as "total_outgoing" from "wallet_transactions" where "wallet_transactions"."status" = 'complete' group by "wallet_transactions"."from") "outgoing_transactions" on "outgoing_transactions"."from" = "wallets"."id" left join (select "wallet", COALESCE(SUM("allocated"), 0) as "total_allocated" from "credit_allocations" where "credit_allocations"."status" = 'active' group by "credit_allocations"."wallet") "allocation_summary" on "allocation_summary"."wallet" = "wallets"."id");--> statement-breakpoint
-CREATE VIEW "public"."vw_reward_balances" AS (select "wallets"."id", 
+       as "balance" from "wallets" left join (select "to", COALESCE(SUM("value"), 0) as "total_incoming" from "wallet_transactions" where ("wallet_transactions"."status" = 'complete' and "wallet_transactions"."type" = 'funding') group by "wallet_transactions"."to") "incoming_transactions" on "incoming_transactions"."to" = "wallets"."id" left join (select "wallet", COALESCE(SUM("allocated"), 0) as "total_allocated" from "credit_allocations" where "credit_allocations"."status" = 'active' group by "credit_allocations"."wallet") "allocation_summary" on "allocation_summary"."wallet" = "wallets"."id");--> statement-breakpoint
+CREATE VIEW "public"."vw_reward_balances" AS (select "wallets"."id", "wallets"."ownedBy", 
       SUM(
         CASE
-          WHEN ("wallet_transactions"."from" = "wallets"."id" and "wallet_transactions"."type" = 'reward' and "wallet_transactions"."status" = 'complete') THEN -"wallet_transactions"."value"
-          WHEN ("wallet_transactions"."to" = "wallets"."id" and "wallet_transactions"."type" = 'reward' and "wallet_transactions"."status" = 'complete') THEN "wallet_transactions"."value"
+          WHEN ("wallet_transactions"."to" = "wallets"."id" and "wallet_transactions"."type" = 'reward') THEN "wallet_transactions"."value"
+          WHEN ("wallet_transactions"."from" = "wallets"."id" and "wallet_transactions"."type" = 'withdrawal') THEN -1 * "wallet_transactions"."value"
           ELSE 0
         END
-      )::BIGINT as "balance", "wallets"."ownedBy" from "wallets" left join "wallet_transactions" on ("wallets"."id" = "wallet_transactions"."from" or "wallets"."id" = "wallet_transactions"."to") left join "users" on "wallets"."ownedBy" = "users"."id" group by "wallets"."id", "wallets"."ownedBy");--> statement-breakpoint
+      )
+     as "balance" from "wallets" left join "wallet_transactions" on ("wallet_transactions"."status" = 'complete' and ("wallet_transactions"."from" = "wallets"."id" or "wallet_transactions"."to" = "wallets"."id")) group by "wallets"."id");--> statement-breakpoint
 CREATE VIEW "public"."vw_credit_allocations" AS (select "credit_allocations"."id", "credit_allocations"."wallet", "credit_allocations"."allocated", 
         SUM(
           CASE
