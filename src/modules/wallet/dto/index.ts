@@ -63,7 +63,9 @@ export const WalletTransferSchema = z.object({
 });
 
 export const WalletTransferGroupSchema = z.object({
-  burst: z.union([z.string(), z.date()]).pipe(z.coerce.date()),
+  burst: z
+    .union([z.string().nullable(), z.date().nullable()])
+    .pipe(z.coerce.date().nullable()),
   fundingRewardsRatio: z
     .union([z.string(), z.number()])
     .nullable()

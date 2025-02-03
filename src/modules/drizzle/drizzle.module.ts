@@ -26,10 +26,7 @@ export const DRIZZLE = Symbol('drizzle-conn');
 
         return drizzle(pool, {
           schema,
-          logger:
-            cs.get<string | null>('NODE_ENV') === 'development'
-              ? new DefaultLogger({ writer: new DefaultWriter() })
-              : false,
+          logger: new DefaultLogger({ writer: new DefaultWriter() }),
         }) as DrizzleDb;
       },
     },
