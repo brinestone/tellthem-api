@@ -111,7 +111,10 @@ export class FinanceService {
     ];
     const devProviders = [{ label: 'Virtual Transfers', name: 'virtual' }];
     const ans: any = [...productionProviders];
-    if (this.configService.get<string>('NODE_ENV') === 'development')
+    if (
+      this.configService.get<string>('NODE_ENV', 'production') === 'development' ||
+      this.configService.get<string>('NODE_ENV', 'production') === 'staging'
+    )
       ans.push(...devProviders);
 
     return z.array(PaymentMethodProviderSchema).parse(ans);

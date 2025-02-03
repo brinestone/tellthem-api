@@ -282,7 +282,7 @@ Please use the information below to make an attractive post to attact your frien
 
       const frontend = this.cs.getOrThrow<string>('VALID_AUDIENCE');
       const settingsPageLink =
-        this.cs.get<string>('NODE_ENV') === 'development'
+        this.cs.get<string>('NODE_ENV', 'production') === 'development'
           ? `Go to *${frontend}/settings*`
           : `Kindly [click here](${frontend}/settings)`;
       const message = `

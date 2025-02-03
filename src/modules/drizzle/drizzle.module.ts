@@ -21,7 +21,7 @@ export const DRIZZLE = Symbol('drizzle-conn');
 
         const pool = new Pool({
           connectionString: dbUrl,
-          ssl: cs.get<string>('NODE_ENV') !== 'development',
+          ssl: cs.get<string>('NODE_ENV', 'production') !== 'development',
         });
 
         return drizzle(pool, {

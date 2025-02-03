@@ -48,7 +48,10 @@ export class FinanceController {
 
   @OnEvent(USER_CREATED)
   async onUserCreated({ userId }: UserCreatedEvent) {
-    if (this.configService.get<string>('NODE_ENV') === 'production') return;
+    if (
+      this.configService.get<string>('NODE_ENV', 'production') === 'production'
+    )
+      return;
     try {
       await this.financeService.registerPaymentMethod(userId, 'virtual', {
         userId,
