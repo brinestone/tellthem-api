@@ -83,18 +83,23 @@ export class AppController {
     @Headers() headers: Record<string, string>,
     @User() user?: UserInfo,
   ) {
-    const userAgent = headers['user-agent'];
-    await this.eventEmitter.emitAsync(
-      ANALYTICS,
-      new AnalyticsRequestReceivedEvent(
-        ip,
-        userAgent,
-        key,
-        type,
-        data,
-        user?.id,
-      ),
-    );
+    try {
+      const userAgent = headers['user-agent'];
+      await this.eventEmitter.emitAsync(
+        ANALYTICS,
+        new AnalyticsRequestReceivedEvent(
+          ip,
+          userAgent,
+          key,
+          type,
+          data,
+          user?.id,
+        ),
+      );
+    } catch (e) {
+      this.logger.error(e.message, e.stack);
+      throw e;
+    }
   }
 
   @Get('countries')
