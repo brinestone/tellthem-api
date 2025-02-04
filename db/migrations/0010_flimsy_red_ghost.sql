@@ -1,0 +1,3 @@
+ALTER TABLE "reward_grants" ADD COLUMN "failureCount" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "reward_grants" ADD COLUMN "retryWindow" interval DEFAULT '30m';--> statement-breakpoint
+CREATE VIEW "public"."vw_reward_grants" AS (select "id", "broadcastView", "status", "createdAt", "updatedAt", "failedAt", "failureReason", "failureCount", "walletTransaction", "failedAt" + "retryWindow" as "next_retry" from "reward_grants");

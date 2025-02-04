@@ -23,6 +23,52 @@ import {
 import { z } from 'zod';
 import { accountConnections, users } from './users';
 
+export const rewardGrantStatus = pgEnum('reward_grant_status', [
+  'granted',
+  'failed',
+  'pending',
+]);
+export const rewardGrants = pgTable('reward_grants', {
+  id: uuid().primaryKey().defaultRandom(),
+  broadcastView: uuid()
+    .notNull()
+    .references(() => broadcastViews.id),
+  status: rewardGrantStatus().default('pending'),
+  createdAt: timestamp({ mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp({ mode: 'date' })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+  grantedAt: timestamp({ mode: 'date' }),
+  failureCount: integer().notNull().default(0),
+  failedAt: timestamp({ mode: 'date' }),
+  failureReason: text(),
+  retryWindow: interval().default('30m'),
+  walletTransaction: uuid().references(() => walletTransactions.id, {
+    onDelete: 'set null',
+  }),
+});
+
+export const vwRewardGrants = pgView('vw_reward_grants').as((qb) => {
+  return qb
+    .select({
+      id: rewardGrants.id,
+      broadcastView: rewardGrants.broadcastView,
+      status: rewardGrants.status,
+      createdAt: rewardGrants.createdAt,
+      updatedAt: rewardGrants.updatedAt,
+      failedAt: rewardGrants.failedAt,
+      failureReason: rewardGrants.failureReason,
+      failureCount: rewardGrants.failureCount,
+      walletTransaction: rewardGrants.walletTransaction,
+      nextRetry:
+        sql<Date>`${rewardGrants.failedAt} + ${rewardGrants.retryWindow}`.as(
+          'next_retry',
+        ),
+    })
+    .from(rewardGrants);
+});
+
 export const broadcastViews = pgTable(
   'broadcast_views',
   {

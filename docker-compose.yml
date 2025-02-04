@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:latest
+    restart: on-failure:20
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - 5433:5432
+
+  api:
+    depends_on:
+      - db
+    restart: on-failure:5
+    image: brinestone/tellthem-api:staging
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432
+    env_file:
+      - .env
+    ports:
+      - 8000:8000

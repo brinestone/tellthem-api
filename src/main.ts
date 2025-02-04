@@ -92,7 +92,6 @@ from(NestFactory.create(AppModule))
         }),
       );
       app.set('trust proxy', true);
-      console.log(configService.get<string>('GOOGLE_CALLBACK_URL'));
       return app.listen(port, () =>
         rootLogger.log('Server started on ' + port),
       );

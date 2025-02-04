@@ -11,11 +11,13 @@ import {
   campaignPublications,
   campaigns,
   publicationBroadcasts,
+  rewardGrants,
 } from '@schemas/campaigns';
 import {
   fundingBalances,
   vwCreditAllocations,
   walletCreditAllocations,
+  walletTransactions,
 } from '@schemas/finance';
 import { and, count, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -25,6 +27,45 @@ import { NewPublicationDto } from '../dto/publication.dto';
 @Injectable()
 export class CampaignService {
   constructor(@Inject(DRIZZLE) private db: DrizzleDb) {}
+
+  async updateReward(id: string, transactionId: string) {
+    await this.db.transaction(async (t) => {
+      const [{ status }] = await t
+        .select()
+        .from(walletTransactions)
+        .where(eq(walletTransactions.id, transactionId));
+
+      let updateStatus: 'granted' | 'failed' | 'pending' = 'pending';
+      switch (status) {
+        case 'complete':
+          updateStatus = 'granted';
+          break;
+        case 'pending':
+          updateStatus = 'pending';
+        default:
+          updateStatus = 'failed';
+      }
+      return t
+        .update(rewardGrants)
+        .set({
+          walletTransaction: transactionId,
+          status: updateStatus,
+        })
+        .where(eq(rewardGrants.id, id));
+    });
+  }
+
+  async createReward(broadcastView: string) {
+    const [{ id }] = await this.db.transaction((t) =>
+      t
+        .insert(rewardGrants)
+        .values({
+          broadcastView,
+        })
+        .returning({ id: rewardGrants.id }),
+    );
+    return id;
+  }
 
   async upsertBroadcastView(
     broadcast: string,

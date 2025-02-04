@@ -1,5 +1,12 @@
-import { CAMPAIGN_VIEWED, NEW_PUBLICATION } from '@events/campaign';
+import { ANALYTICS } from '@events/analytics';
+import {
+  CAMPAIGN_VIEWED,
+  NEW_PUBLICATION,
+  REWARD_GRANTED,
+} from '@events/campaign';
+import { REWARD_TRANSFERRED } from '@events/wallet';
 import { User } from '@modules/auth/decorators';
+import { RewardTransferredEvent } from '@modules/wallet/events';
 import {
   Body,
   Controller,
@@ -13,18 +20,21 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { ApiBasicAuth, ApiBody, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { newPublicationSchema } from '@schemas/campaigns';
 import { UserInfo } from '@schemas/users';
+import { createHash } from 'crypto';
 import { zodToOpenAPI, ZodValidationPipe } from 'nestjs-zod';
+import { AnalyticsRequestReceivedEvent } from 'src/event';
 import { z } from 'zod';
 import { CampaignPublicationSchema } from './dto/campaign.dto';
 import {
   BroadcastViewUpsertSchema,
   NewPublicationDto,
 } from './dto/publication.dto';
-import { CampaignPublishedEvent, CampaignViewedEvent } from './events';
+import {
+  CampaignPublishedEvent,
+  CampaignViewedEvent,
+  RewardGrantedEvent,
+} from './events';
 import { CampaignService } from './services/campaign.service';
-import { ANALYTICS } from '@events/analytics';
-import { AnalyticsRequestReceivedEvent } from 'src/event';
-import { createHash } from 'crypto';
 
 @Controller('campaign/publications')
 export class PublicationController {
@@ -34,6 +44,14 @@ export class PublicationController {
     private eventEmitter: EventEmitter2,
   ) {}
 
+  @OnEvent(REWARD_TRANSFERRED)
+  async onRewardsTransferred(arg: RewardTransferredEvent) {
+    try {
+      await this.campaignService.updateReward(arg.grant, arg.transaction);
+    } catch (e) {
+      this.logger.error(e.message, e.stack);
+    }
+  }
   @OnEvent(ANALYTICS)
   async registerBroadcastView(arg: AnalyticsRequestReceivedEvent) {
     if (arg.type != 'broadcast') return;
@@ -45,17 +63,24 @@ export class PublicationController {
       cipher.update(arg.userAgent);
 
       const hash = cipher.digest('hex');
-      const { clicks } = await this.campaignService.upsertBroadcastView(
-        arg.key,
-        arg.ip,
-        hash,
-        arg.userAgent,
-      );
+      const { clicks, id: broadcastView } =
+        await this.campaignService.upsertBroadcastView(
+          arg.key,
+          arg.ip,
+          hash,
+          arg.userAgent,
+        );
       if (clicks > 1) return;
+
+      const rewardId = await this.campaignService.createReward(broadcastView);
 
       await this.eventEmitter.emitAsync(
         CAMPAIGN_VIEWED,
         new CampaignViewedEvent(arg.key, undefined, arg.user),
+      );
+      await this.eventEmitter.emitAsync(
+        REWARD_GRANTED,
+        new RewardGrantedEvent(rewardId, arg.key),
       );
     } catch (e) {
       this.logger.error(e.message, e.stack);

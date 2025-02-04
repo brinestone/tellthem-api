@@ -1,0 +1,1 @@
+ALTER TABLE "reward_grants" ADD COLUMN "failureReason" text;

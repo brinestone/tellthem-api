@@ -1,13 +1,18 @@
-import { CAMPAIGN_VIEWED } from '@events/campaign';
+import { REWARD_GRANTED } from '@events/campaign';
 import {
   PAYMENT_COLLECTION_REQUESTED,
   PAYMENT_STATUS_CHANGED,
 } from '@events/finance';
 import { USER_CREATED, USER_DELETED } from '@events/user';
-import { BALANCE_UPDATED, NEW_WALLET, WALLET_DELETED } from '@events/wallet';
+import {
+  BALANCE_UPDATED,
+  NEW_WALLET,
+  REWARD_TRANSFERRED,
+  WALLET_DELETED,
+} from '@events/wallet';
 import { User } from '@modules/auth/decorators';
 import { UserCreatedEvent, UserDeletedEvent } from '@modules/auth/events';
-import { CampaignViewedEvent } from '@modules/campaign/events';
+import { RewardGrantedEvent } from '@modules/campaign/events';
 import {
   CollectPaymentRequestedEvent,
   PaymentUpdatedEvent,
@@ -18,6 +23,7 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { UserInfo } from '@schemas/users';
 import { Request } from 'express';
 import { ZodValidationPipe } from 'nestjs-zod';
+import { forkJoin, map } from 'rxjs';
 import {
   BalancesSchema,
   WalletTopupInput,
@@ -26,6 +32,7 @@ import {
   WalletTransfersResponseSchema,
 } from './dto';
 import {
+  RewardTransferredEvent,
   WalletBalanceUpdatedEvent,
   WalletCreatedEvent,
   WalletDeletedEvent,
@@ -35,7 +42,6 @@ import {
   ParametersError,
   WalletService,
 } from './wallet.service';
-import { forkJoin, map } from 'rxjs';
 
 @Controller('wallet')
 export class WalletController {
@@ -46,8 +52,8 @@ export class WalletController {
     private configService: ConfigService,
   ) {}
 
-  @OnEvent(CAMPAIGN_VIEWED)
-  async computeRewardsOnCampaignViewed(arg: CampaignViewedEvent) {
+  @OnEvent(REWARD_GRANTED)
+  async computeRewardsOnCampaignViewed(arg: RewardGrantedEvent) {
     try {
       const {
         broadcaster,
@@ -67,6 +73,11 @@ export class WalletController {
       await this.eventEmitter.emitAsync(
         BALANCE_UPDATED,
         new WalletBalanceUpdatedEvent(destWallet, broadcaster),
+      );
+
+      await this.eventEmitter.emitAsync(
+        REWARD_TRANSFERRED,
+        new RewardTransferredEvent(arg.rewardId, transactionId),
       );
     } catch (e) {
       if (e instanceof ParametersError || e instanceof InsufficientFundsError)

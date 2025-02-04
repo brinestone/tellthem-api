@@ -40,12 +40,14 @@ import {
 } from '@schemas/users';
 import axios, { AxiosError } from 'axios';
 import { zodToOpenAPI, ZodValidationPipe } from 'nestjs-zod';
+import { Agent } from 'node:https';
 import {
   concatMap,
   delayWhen,
   forkJoin,
   from,
   groupBy,
+  map,
   of,
   switchMap,
   toArray,
@@ -77,24 +79,9 @@ import { z } from 'zod';
 //   '.tif',
 // ];
 
-export type PxlShortLinkResponse = {
-  data: ShortLinkData;
+export type UrlShortLinkResponse = {
+  urlEncurtada: string;
 };
-
-export type ShortLinkData = {
-  id: string;
-  route: string;
-  destination: string;
-  title: string;
-  description: string;
-  image: string;
-  favicon: string;
-  consent: boolean;
-  clicks: number;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
 @Controller('connections')
 export class ConnectionController {
   private logger = new Logger(ConnectionController.name);
@@ -141,44 +128,20 @@ Please use the information below to make an attractive post to attact your frien
               };
               return group$.pipe(
                 delayWhen((_, i) => (i % 30 == 0 && i > 0 ? of(1000) : of(0))),
-                concatMap((connection) => {
+                map((connection) => {
                   const url = `${this.cs.getOrThrow<string>('VALID_AUDIENCE')}/analytics?id=${connection.broadcast}&t=broadcast&r=${encodeURIComponent(campaign.redirectUrl as string)}`;
-                  return forkJoin([
-                    of(connection),
-                    axios.post<PxlShortLinkResponse>(
-                      'https://api.pxl.to/api/v1/short',
-                      {
-                        destination: url,
-                        title: campaign.title,
-                        description: campaign.description ?? null,
-                      },
-                      {
-                        headers: {
-                          'content-type': 'application/json',
-                          Authorization: `Bearer ${this.cs.getOrThrow<string>('PXL_API_KEY')}`,
-                        },
-                      },
-                    ),
-                  ]);
+                  return { connection, url };
                 }),
-                switchMap(
-                  async ([
-                    connection,
-                    {
-                      data: { data },
-                    },
-                  ]) => {
-                    const { chatId } =
-                      TelegramAccountConnectionDataSchema.parse(
-                        connection.params,
-                      );
-                    const msg = messageTemplate(`https://${data.id}`);
-                    await this.bot.telegram.sendMessage(chatId, msg, {
-                      parse_mode: 'Markdown',
-                    });
-                    return connection.broadcast;
-                  },
-                ),
+                switchMap(async ({ connection, url }) => {
+                  const { chatId } = TelegramAccountConnectionDataSchema.parse(
+                    connection.params,
+                  );
+                  const msg = messageTemplate(url);
+                  await this.bot.telegram.sendMessage(chatId, msg, {
+                    parse_mode: 'Markdown',
+                  });
+                  return connection.broadcast;
+                }),
                 toArray(),
                 concatMap((broadcasts) =>
                   this.campaignService.markBroadcastsAsSent(broadcasts),

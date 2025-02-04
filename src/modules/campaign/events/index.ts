@@ -21,3 +21,10 @@ export class CampaignViewedEvent {
     readonly user?: number,
   ) {}
 }
+
+export class RewardGrantedEvent {
+  constructor(
+    readonly rewardId: string,
+    readonly broadcast: string,
+  ) {}
+}

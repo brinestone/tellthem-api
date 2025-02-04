@@ -12,3 +12,10 @@ export class WalletBalanceUpdatedEvent {
     readonly owner: number,
   ) {}
 }
+
+export class RewardTransferredEvent {
+  constructor(
+    readonly grant: string,
+    readonly transaction: string,
+  ) {}
+}

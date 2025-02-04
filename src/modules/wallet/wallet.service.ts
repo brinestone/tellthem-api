@@ -17,7 +17,7 @@ import {
   walletTransactions,
 } from '@schemas/finance';
 import { accountConnections } from '@schemas/users';
-import { and, count, eq, inArray, sql, desc } from 'drizzle-orm';
+import { and, count, eq, inArray, sql, desc, isNotNull } from 'drizzle-orm';
 import {
   from,
   identity,
@@ -112,8 +112,9 @@ export class WalletService {
         },
       ] = data;
 
-      if (remainingCredits < this.cs.getOrThrow<number>('MIN_REWARD'))
-        throw new InsufficientFundsError();
+      const creditsAvailable =
+        Number(remainingCredits) >= this.cs.getOrThrow<number>('MIN_REWARD');
+      if (!creditsAvailable) throw new InsufficientFundsError();
 
       if (
         !destWallet ||
@@ -181,7 +182,14 @@ export class WalletService {
         return this.db
           .select()
           .from(vwWalletTransferGroups)
-          .where(eq(vwWalletTransferGroups.wallet, wallet.id));
+          .where(
+            and(
+              eq(vwWalletTransferGroups.wallet, wallet.id),
+              isNotNull(vwWalletTransferGroups.burst),
+            ),
+          )
+          .offset(page * size)
+          .limit(size);
       }),
       mergeMap(identity),
       mergeMap((group) => {
