@@ -14,6 +14,7 @@ import {
   Logger,
   Post,
   Query,
+  Req,
   Sse,
   UseGuards,
   UsePipes,
@@ -33,6 +34,7 @@ import { filter, from, Subject, tap, toArray } from 'rxjs';
 import { z } from 'zod';
 import * as CountryData from './assets/countries.json';
 import { AnalyticsRequestReceivedEvent } from './event';
+import { Request } from 'express';
 
 export const GetCountryByIso2CodeSchema = z.object({
   alpha2Code: z
@@ -80,11 +82,12 @@ export class AppController {
   async handleAnalytics(
     @Body() { data, key, type }: AnalyticsRequestDto,
     @Ip() ip: string,
-    @Headers() headers: Record<string, string>,
+    @Req() request: Request,
     @User() user?: UserInfo,
   ) {
     try {
-      const userAgent = headers['user-agent'];
+      const userAgent = request.headers['user-agent'];
+      if (!userAgent) return;
       await this.eventEmitter.emitAsync(
         ANALYTICS,
         new AnalyticsRequestReceivedEvent(
