@@ -63,6 +63,7 @@ export const transactionStatus = pgEnum('transaction_status', [
   'pending',
   'cancelled',
   'complete',
+  'failed',
 ]);
 export const walletTransactionType = pgEnum('wallet_transaction_type', [
   'funding',

@@ -78,6 +78,13 @@
       "when": 1738665829806,
       "tag": "0010_flimsy_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1738931764657,
+      "tag": "0011_spooky_grim_reaper",
+      "breakpoints": true
     }
   ]
 }

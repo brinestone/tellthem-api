@@ -12,6 +12,7 @@ import {
   campaigns,
   publicationBroadcasts,
   rewardGrants,
+  RewardGrantUpdate,
 } from '@schemas/campaigns';
 import {
   fundingBalances,
@@ -35,23 +36,29 @@ export class CampaignService {
         .from(walletTransactions)
         .where(eq(walletTransactions.id, transactionId));
 
-      let updateStatus: 'granted' | 'failed' | 'pending' = 'pending';
-      switch (status) {
-        case 'complete':
-          updateStatus = 'granted';
-          break;
-        case 'pending':
-          updateStatus = 'pending';
-        default:
-          updateStatus = 'failed';
+      const grant = await t.query.rewardGrants.findFirst({
+        where: (grant, { eq }) => eq(grant.id, id),
+      });
+
+      if (!grant) {
+        throw new Error('grant not found :' + id);
       }
-      return t
-        .update(rewardGrants)
-        .set({
-          walletTransaction: transactionId,
-          status: updateStatus,
-        })
-        .where(eq(rewardGrants.id, id));
+      const update = {
+        status,
+        walletTransaction: transactionId,
+      } as RewardGrantUpdate;
+
+      if (status == 'complete') {
+        update.grantedAt = new Date();
+        update.grantedAt = new Date();
+      }
+
+      if (status == 'failed') {
+        update.failedAt = new Date();
+        update.failureCount = grant.failureCount + 1;
+      }
+
+      return t.update(rewardGrants).set(update).where(eq(rewardGrants.id, id));
     });
   }
 

@@ -27,6 +27,7 @@ export const rewardGrantStatus = pgEnum('reward_grant_status', [
   'granted',
   'failed',
   'pending',
+  'cancelled',
 ]);
 export const rewardGrants = pgTable('reward_grants', {
   id: uuid().primaryKey().defaultRandom(),
@@ -48,6 +49,9 @@ export const rewardGrants = pgTable('reward_grants', {
     onDelete: 'set null',
   }),
 });
+
+export const RewardGrantUpdateSchema = createUpdateSchema(rewardGrants);
+export type RewardGrantUpdate = z.infer<typeof RewardGrantUpdateSchema>;
 
 export const vwRewardGrants = pgView('vw_reward_grants').as((qb) => {
   return qb
