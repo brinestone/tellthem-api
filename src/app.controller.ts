@@ -6,16 +6,21 @@ import { UserPrefsUpdatedEvent } from '@modules/auth/events';
 import { RecpatchaGuard } from '@modules/auth/guards';
 import { WalletBalanceUpdatedEvent } from '@modules/wallet/events';
 import {
+  ArgumentsHost,
   Body,
+  Catch,
   Controller,
+  ExceptionFilter,
   Get,
-  Headers,
+  HttpException,
+  InternalServerErrorException,
   Ip,
   Logger,
   Post,
   Query,
   Req,
   Sse,
+  UseFilters,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
@@ -29,12 +34,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserInfo } from '@schemas/users';
+import { Request, Response } from 'express';
 import { createZodDto, ZodValidationPipe } from 'nestjs-zod';
 import { filter, from, Subject, tap, toArray } from 'rxjs';
 import { z } from 'zod';
 import * as CountryData from './assets/countries.json';
 import { AnalyticsRequestReceivedEvent } from './event';
-import { Request } from 'express';
 
 export const GetCountryByIso2CodeSchema = z.object({
   alpha2Code: z
@@ -65,6 +70,23 @@ interface MessageEvent {
   retry?: number;
 }
 
+@Catch(InternalServerErrorException)
+class ExceptionHandler implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
+    console.log(exception);
+    const ctx = host.switchToHttp();
+    const request = ctx.getRequest<Request>();
+    const response = ctx.getResponse<Response>();
+    const status = exception.getStatus();
+
+    response.status(status).json({
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+    });
+  }
+}
+
 @Controller()
 export class AppController {
   private logger = new Logger(AppController.name);
@@ -79,6 +101,7 @@ export class AppController {
   @UseGuards(RecpatchaGuard)
   @UsePipes(ZodValidationPipe)
   @ApiExcludeEndpoint()
+  @UseFilters(new ExceptionHandler())
   async handleAnalytics(
     @Body() { data, key, type }: AnalyticsRequestDto,
     @Ip() ip: string,
